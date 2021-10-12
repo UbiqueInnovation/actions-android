@@ -1,4 +1,3 @@
-from datetime import datetime
 import sys
 import json
 import os
@@ -6,6 +5,7 @@ import requests
 import argparse
 import re
 import time
+import shlex
 
 
 def upload(endpoint, json_map, files):
@@ -28,14 +28,18 @@ def generate_json_dict(args):
     aapt = os.popen(
         '{}/build-tools/{}/aapt d badging {}'.format(android_home, build_tools, args.apk_file)).read().strip()
     print('aapt: ' + aapt)
-    app_version = aapt.split('versionName=')[1].split(' ')[0]
-    app_name = aapt.split('application-label:')[1].split(' ')[0]
-    app_identifier = aapt.split('package: name=')[1].split(' ')[0]
+    split_aapt = shlex.split(aapt)
+    print('\n')
+    print(split_aapt)
+    print('\n')
+    app_version = find_property_for_name(split_aapt, 'versionName=')
+    app_name = find_property_for_name(split_aapt, 'application-label:')
+    app_identifier = find_property_for_name(split_aapt[split_aapt.index('package:'):], 'name=')
 
     json_dict = {'platform': 'android', 'configuration': args.configuration,
                  'projectKey': args.project_key, 'app': args.app, 'provisioning': '',
                  'branch': args.branch.replace('origin/', ''), 'uuid': args.uuid, 'appIdentifier': app_identifier,
-                 'appName': app_name, 'appVersion': app_version, 'build_time': round(time.time() * 1000),
+                 'appName': app_name, 'appVersion': app_version, 'buildTime': round(time.time() * 1000),
                  'buildNr': args.build_nr}
 
     gitlog = os.popen('git log --pretty=format:\"%h%n%aN%n%aE%n%s%n\" -1').read().strip()
@@ -50,6 +54,10 @@ def generate_json_dict(args):
     json_dict['revNr'] = revision
     json_dict['user'] = user
     return json_dict
+
+
+def find_property_for_name(property_list, property_name):
+    return next(filter(lambda x: property_name in x, property_list)).split(property_name)[1]
 
 
 def generate_files_dict(args):
@@ -71,7 +79,7 @@ def getBuildTools():
     for root, dirs, files in os.walk(os.environ["ANDROID_HOME"] + "/build-tools"):
         for dir in dirs:
             if matchBuildVersion.match(dir):
-                ms =  matchBuildVersion.match(dir)
+                ms = matchBuildVersion.match(dir)
                 tools[(int(ms.group(1)), int(ms.group(2)), int(ms.group(3)))] = ms.string
 
     toolsList = list(tools.keys())
