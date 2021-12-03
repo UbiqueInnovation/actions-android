@@ -30,7 +30,7 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: 'docker://ubinnovation/android-build-environment:1.0.0'
+  image: 'docker://ubinnovation/android-build-environment:1.0.1'
   entrypoint: '/main.sh'
   args:
     - ${{ inputs.projectKey }}
