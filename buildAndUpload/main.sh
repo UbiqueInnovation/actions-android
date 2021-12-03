@@ -13,7 +13,6 @@ backendEndpoint=$9
 if [ -n "$appModuleDirectory" ]; then
   cd $appModuleDirectory
 fi
-buildCommand=""
 
 echo "configuration"$configuration
 flavor=`echo $(tr a-z A-Z <<< ${configuration:0:1})${configuration:1}`
