@@ -28,6 +28,9 @@ inputs:
   backendEndpoint:
     description: 'backend endpoint for upload'
     required: true
+  playstorePublishKeyJson:
+    description: 'credentials json for publishing'
+    required: false
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -42,3 +45,4 @@ runs:
     - ${{ inputs.gradleProps }}
     - ${{ inputs.buildNumber }}
     - ${{ inputs.backendEndpoint }}
+    - ${{ inputs.playstorePublishKey }}

@@ -9,6 +9,7 @@ appModuleDirectory=$6
 gradleProps=$7
 buildNumber=$8
 backendEndpoint=$9
+playstorePublishKeyJson=$10
 
 if [ -n "$appModuleDirectory" ]; then
   cd $appModuleDirectory
@@ -30,11 +31,17 @@ echo $build_uuid
 
 iconFile=`pwd`'tmp_icon_large_for_backend.png'
 
+if [ -n '$playstorePublishKeyJson' ]; then
+  echo $playstorePublishKeyJson >> upload-service-account.json
+fi
+
 chmod +x ../gradlew
 echo "Build-Number: "$buildNumber
 echo "GradleProps: "$gradleProps
 echo clean $buildCommand -Pubappid=$build_uuid -Pbranch=$gitBranch -Pwebicon=$iconFile $gradleProps
 ../gradlew clean $buildCommand -Pubappid=$build_uuid -Pbranch=$gitBranch -Pwebicon=$iconFile $gradleProps
+
+rm upload-service-account.json
 
 apkFile=`pwd`"/"`find build -type f -name "*.apk" | head -n 1`
 echo $apkFile
