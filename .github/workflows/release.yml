@@ -1,0 +1,23 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  android_build_environment:
+    name: Build and Publish Versioned Android Build Environment Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2.3.5
+
+      - name: Login to DockerHub Registry
+        run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Build the tagged Docker image
+        run: docker build --tag ubinnovation/android-build-environment:${{ github.ref_name }} buildAndUpload/
+
+      - name: Push the tagged Docker image
+        run: docker push ubinnovation/android-build-environment:${{ github.ref_name }}
