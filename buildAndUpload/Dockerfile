@@ -15,11 +15,12 @@ RUN mkdir "$ANDROID_HOME" .android && \
     rm sdk.zip
 
 # Copy the file of SDK packages to be installed
-# This file should contain :
+# This file should contain:
 # - The platform tools
 # - The latest SDK platforms our apps target (https://developer.android.com/studio/releases/platforms)
-# - The default build tools and NDK versions of the latest gradle plugin (https://developer.android.com/studio/releases/gradle-plugin)
+# - The default build tools version of the latest gradle plugin (https://developer.android.com/studio/releases/gradle-plugin)
 # - The default CMake version (https://developer.android.com/studio/projects/install-ndk#vanilla_cmake)
+# - NDK versions should not be included because that would make the docker image too large
 COPY android_sdk_packages.txt $ANDROID_HOME/packages.txt
 
 # Accept all SDK licenses and install the specified version for build and platform tools as well as all CMake and NDK versions
