@@ -10,11 +10,37 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2.3.5
 
-      - name: Login to Docker Hub Registry
-        run: echo ${{ secrets.DOCKER_HUB_PASSWORD }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+      # Docker Buildx allows storing Docker layers as artifacts (https://docs.docker.com/buildx/working-with-buildx/) which is used for caching
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
-      - name: Build the tagged Docker image
-        run: docker build --tag ubinnovation/android-build-environment:latest buildAndUpload/
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-      - name: Push the tagged Docker image
-        run: docker push ubinnovation/android-build-environment:latest
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: buildAndUpload
+          push: true
+          tags: ubinnovation/android-build-environment:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+        # Temp fix to not keep growing cache size
+        # https://github.com/docker/build-push-action/issues/252
+        # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
