@@ -1,0 +1,45 @@
+name: 'UBDiag Upload'
+description: 'Build an Android app and upload it to UBDiag'
+inputs:
+  buildNumber:
+    description: 'A unique build number'
+    required: true
+  projectKey:
+    description: 'The project key for this build'
+    required: true
+  flavor:
+    description: 'The Android app flavor'
+    required: true
+  buildType:
+    description: 'The Android build type (debug, release, etc.)'
+    required: false
+    default: 'release'
+  app:
+    description: 'The app identifier for this build'
+    required: true
+  appModuleDirectory:
+    description: 'The project folder of the app module'
+    required: true
+  buildUuid:
+    description: 'A uuid for this build'
+    required: true
+  webIconFile:
+    description: 'The path to the generated web icon file'
+    required: true
+  backendEndpoint:
+    description: 'The backend endpoint for the UBDiag upload'
+    required: true
+runs:
+  using: 'docker'
+  image: 'docker://ubinnovation/android-ubdiag-upload:latest'
+  entrypoint: '/main.sh'
+  args:
+    - ${{ inputs.buildNumber }}
+    - ${{ inputs.projectKey }}
+    - ${{ inputs.flavor }}
+    - ${{ inputs.buildType }}
+    - ${{ inputs.app }}
+    - ${{ inputs.appModuleDirectory }}
+    - ${{ inputs.buildUuid }}
+    - ${{ inputs.webIconFile }}
+    - ${{ inputs.backendEndpoint }}
