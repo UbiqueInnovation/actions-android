@@ -1,7 +1,7 @@
 FROM openjdk:11
 
 ENV ANDROID_SDK_URL https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-ENV ANDROID_BUILD_TOOLS_VERSION 30.0.1
+ENV ANDROID_BUILD_TOOLS_VERSION 31.0.0
 ENV ANDROID_HOME /usr/local/android-sdk-linux
 ENV ANDROID_VERSION 30
 ENV PATH ${PATH}:${ANDROID_HOME}/cmdline-tools/bin:${ANDROID_HOME}/platform-tools
