@@ -1,5 +1,0 @@
-build-tools;30.0.2
-platforms;android-30
-platforms;android-31
-platform-tools
-cmake;3.10.2.4988404
