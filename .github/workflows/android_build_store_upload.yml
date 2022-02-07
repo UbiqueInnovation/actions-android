@@ -1,0 +1,72 @@
+name: Build and Upload to Play Store
+
+on:
+  workflow_call:
+    inputs:
+      flavor:
+        type: string
+        required: true
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
+      UB_ARTIFACTORY_URL_ANDROID:
+        required: true
+      UB_ARTIFACTORY_USERNAME:
+        required: true
+      UB_ARTIFACTORY_PASSWORD:
+        required: true
+      UBIQUE_POEDITOR_API_KEY:
+        required: true
+      ADDITIONAL_GRADLE_PROPS:
+        required: false
+      UPLOAD_KEY_STORE_PASSWORD:
+        required: true
+      UPLOAD_KEY_PASSWORD:
+        required: true
+      ANDROID_PUBLISHER_CREDENTIALS:
+        required: true
+
+
+jobs:
+  build:
+    name: Build ${{ inputs.flavor }} Flavor
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v2.3.5
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+
+      # Set build variables for reuse in multiple steps
+      - name: Set Build Variables
+        id: vars
+        run: |
+          echo ::set-output name=flavor_capitalized::${${{ inputs.flavor }}~}
+
+      # Setup the build environment with Java 11 and the Zulu OpenJDK
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      # Setup the build environment with Gradle
+      - name: Build and publish app
+        uses: gradle/gradle-build-action@v2
+        with:
+          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the main branch to write cache entries and let other branches read them
+          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
+          cache-read-only: ${{ github.ref_name != 'develop' }}
+          arguments: |
+            publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
