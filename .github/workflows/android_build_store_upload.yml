@@ -26,7 +26,6 @@ on:
       ANDROID_PUBLISHER_CREDENTIALS:
         required: true
 
-
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor

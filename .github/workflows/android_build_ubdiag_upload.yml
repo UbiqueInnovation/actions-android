@@ -108,5 +108,5 @@ jobs:
       - name: Store Test Report in Build Artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: test-reports-dev
+          name: test-reports-${{ inputs.flavor }}
           path: ${{ inputs.appModuleDirectory }}/build/reports

@@ -25,7 +25,18 @@ iconFile="$(pwd)/${webIconFile}"
 
 echo "Uploading apk to UBDiag"
 echo "Path to apk:            $apkFile"
+if [ ! -f "$apkFile" ]; then
+  echo "APK file not found!"
+fi
+
 echo "Path to mapping file:   $desymFile"
+if [ ! -f "$desymFile" ]; then
+  echo "Mapping file not found!"
+fi
+
 echo "Path to web icon file:  $iconFile"
+if [ ! -f "$iconFile" ]; then
+  echo "Web icon file not found!"
+fi
 
 python3 /main.py --endpoint=$backendEndpoint --apk_file=$apkFile --desym_file=$desymFile --icon_file=$iconFile --configuration=$flavor --project_key=$projectKey --app=$app --branch=$gitBranch --uuid=$buildUuid --build_nr=$buildNumber
