@@ -60,11 +60,6 @@ jobs:
           distribution: 'zulu'
           java-version: '11'
 
-      # Install Imagemagick for our UBDiag gradle plugin
-      # This should be removed once the plugin does not require imagemagick anymore
-      - name: Install Imagemagick
-        run: sudo apt-get install -y imagemagick
-
       # Setup the build environment with Gradle
       - name: Build app
         uses: gradle/gradle-build-action@v2
