@@ -16,6 +16,10 @@ on:
         type: string
         required: false
         default: './app'
+      installImagemagick:
+        type: boolean
+        required: false
+        default: false
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -59,6 +63,19 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '11'
+
+      # Install Imagemagick 7 if configured to do so (6 is pre-installed)
+      - name: Install imagemagick
+        if: ${{ fromJSON(inputs.installImagemagick) }}
+        run: |
+          sudo apt-get install wget build-essential
+          wget https://download.imagemagick.org/ImageMagick/download/ImageMagick-7.1.0-26.tar.gz
+          tar -xvf ImageMagick-7.1.0-26.tar.gz
+          cd ImageMagick-7.1.0-26/
+          ./configure
+          make
+          sudo make install
+          sudo ldconfig /usr/local/lib
 
       # Setup the build environment with Gradle
       - name: Build app
