@@ -43,7 +43,8 @@ jobs:
       - name: Set Build Variables
         id: vars
         run: |
-          echo ::set-output name=flavor_capitalized::${${{ inputs.flavor }}~}
+          flavor=${{ inputs.flavor }}
+          echo ::set-output name=flavor_capitalized::${flavor~}
 
       # Setup the build environment with Java 11 and the Zulu OpenJDK
       - name: Setup Java
