@@ -112,7 +112,7 @@ jobs:
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@95a3aff882d4abe2838b187c66477be7fbf3ddb8
+        uses: EnricoMi/publish-unit-test-result-action/composite@4a00ba50806e7658e5005bb91acdb3274714595a
         with:
           check_name: "Unit Test Results ${{ inputs.flavor }}"
           files: ${{ inputs.appModuleDirectory }}/build/test-results/**/*.xml
