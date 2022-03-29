@@ -39,4 +39,4 @@ if [ ! -f "$iconFile" ]; then
   echo "Web icon file not found!"
 fi
 
-python3 /main.py --endpoint=$backendEndpoint --apk_file=$apkFile --desym_file=$desymFile --icon_file=$iconFile --configuration=$flavor --project_key=$projectKey --app=$app --branch=$gitBranch --uuid=$buildUuid --build_nr=$buildNumber
+python3 /main.py --endpoint="$backendEndpoint" --apk_file="$apkFile" --desym_file="$desymFile" --icon_file="$iconFile" --configuration="$flavor" --project_key="$projectKey" --app="$app" --branch="$gitBranch" --uuid="$buildUuid" --build_nr="$buildNumber"
