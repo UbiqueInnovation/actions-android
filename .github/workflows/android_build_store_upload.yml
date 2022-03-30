@@ -6,6 +6,10 @@ on:
       flavor:
         type: string
         required: true
+      appModule:
+        type: string
+        required: false
+        default: 'app'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -61,7 +65,7 @@ jobs:
           # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
           cache-read-only: ${{ github.ref_name != 'develop' }}
           arguments: |
-            publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+            :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
