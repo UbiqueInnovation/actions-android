@@ -34,6 +34,10 @@ jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ubuntu-latest
+    concurrency:
+      # Cancel any previous runs that have not yet finished for this workflow and git ref
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       # Checkout repository and submodules
       - name: Checkout
