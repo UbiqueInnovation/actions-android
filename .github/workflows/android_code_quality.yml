@@ -1,0 +1,120 @@
+name: Run Code Quality Checks
+
+on:
+  workflow_call:
+    inputs:
+      flavor:
+        type: string
+        required: true
+      appModule:
+        type: string
+        required: false
+        default: 'app'
+      runLint:
+        type: boolean
+        required: false
+        default: true
+      runTests:
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
+      UB_ARTIFACTORY_URL_ANDROID:
+        required: true
+      UB_ARTIFACTORY_USERNAME:
+        required: true
+      UB_ARTIFACTORY_PASSWORD:
+        required: true
+      UBIQUE_POEDITOR_API_KEY:
+        required: true
+      UBIQUE_SONAR_TOKEN:
+        required: true
+      ADDITIONAL_GRADLE_PROPS:
+        required: false
+
+jobs:
+  code_quality:
+    name: Run code quality checks
+    runs-on: ubuntu-latest
+    concurrency:
+      # Cancel any previous runs that have not yet finished for this workflow and git ref
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v2.4.2
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+
+      # Set build variables for reuse in multiple steps
+      - name: Set Build Variables
+        id: vars
+        run: |
+          flavor=${{ inputs.flavor }}
+          echo ::set-output name=flavor_capitalized::${flavor~}
+          gradleProps="-PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          echo ::set-output name=gradle_properties::$gradleProps
+
+      # Setup the build environment with Java 11 and the Zulu OpenJDK
+      - name: Setup Java
+        uses: actions/setup-java@v3.3.0
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      # Cache SonarCloud packages for future runs
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3.0.2
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Run Android Lint checks
+      - name: Run Lint
+        id: lint
+        if: ${{ fromJSON(inputs.runLint) }}
+        uses: gradle/gradle-build-action@v2.1.6
+        with:
+          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the develop branch to write cache entries and let other branches read them
+          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
+          cache-read-only: ${{ github.ref_name != 'develop' }}
+          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }}
+
+      # Run Unit Tests
+      - name: Run Unit Tests
+        id: tests
+        if: ${{ fromJSON(inputs.runTests) }}
+        uses: gradle/gradle-build-action@v2.1.6
+        with:
+          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the develop branch to write cache entries and let other branches read them
+          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
+          cache-read-only: ${{ github.ref_name != 'develop' }}
+          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }}
+
+      # Run Sonarqube code analysis
+      - name: Run Sonarqube
+        id: sonarqube
+        if: always()
+        uses: gradle/gradle-build-action@v2.1.6
+        env:
+          GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
+          SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
+        with:
+          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the develop branch to write cache entries and let other branches read them
+          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
+          cache-read-only: ${{ github.ref_name != 'develop' }}
+          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }}
+
+      # Publish test results to pull requests
+      - name: Publish Unit Test Results
+        if: ${{ fromJSON(inputs.runTests) }} && steps.tests.outcome == 'success'
+        uses: EnricoMi/publish-unit-test-result-action@v1.36
+        with:
+          check_name: "Unit Test Results ${{ inputs.flavor }}"
+          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
