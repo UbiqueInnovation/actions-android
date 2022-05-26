@@ -100,7 +100,6 @@ jobs:
       # Run Sonarqube code analysis
       - name: Run Sonarqube
         id: sonarqube
-        if: always()
         uses: gradle/gradle-build-action@v2.1.6
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
@@ -116,5 +115,5 @@ jobs:
         if: ${{ fromJSON(inputs.runTests) }} && steps.tests.outcome == 'success'
         uses: EnricoMi/publish-unit-test-result-action@v1.36
         with:
-          check_name: "Unit Test Results ${{ inputs.flavor }}"
+          check_name: "Unit Test Results"
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml

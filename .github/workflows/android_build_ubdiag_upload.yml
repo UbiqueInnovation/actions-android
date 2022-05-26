@@ -91,7 +91,6 @@ jobs:
           cache-read-only: ${{ github.ref_name != 'develop' }}
           arguments: |
             :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
-            :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -113,17 +112,3 @@ jobs:
           buildUuid: ${{ steps.vars.outputs.build_uuid }}
           webIconFile: tmp_icon_large_for_backend.png
           backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
-
-      # Publish test results to pull requests
-      - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@4a00ba50806e7658e5005bb91acdb3274714595a
-        with:
-          check_name: "Unit Test Results ${{ inputs.flavor }}"
-          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
-
-      # Upload the test reports to the build artifacts
-      - name: Store Test Report in Build Artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-reports-${{ inputs.flavor }}
-          path: ${{ inputs.appModule }}/build/reports
