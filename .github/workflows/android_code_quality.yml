@@ -79,36 +79,27 @@ jobs:
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.runLint) }}
-        uses: gradle/gradle-build-action@v2.1.6
+        uses: gradle/gradle-build-action@v2.2.0
         with:
-          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the develop branch to write cache entries and let other branches read them
-          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
-          cache-read-only: ${{ github.ref_name != 'develop' }}
-          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }}
+          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.runTests) }}
-        uses: gradle/gradle-build-action@v2.1.6
+        uses: gradle/gradle-build-action@v2.2.0
         with:
-          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the develop branch to write cache entries and let other branches read them
-          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
-          cache-read-only: ${{ github.ref_name != 'develop' }}
-          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }}
+          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
         id: sonarqube
-        uses: gradle/gradle-build-action@v2.1.6
+        uses: gradle/gradle-build-action@v2.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
         with:
-          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the develop branch to write cache entries and let other branches read them
-          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
-          cache-read-only: ${{ github.ref_name != 'develop' }}
-          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }}
+          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
