@@ -10,14 +10,18 @@ on:
         type: string
         required: false
         default: 'app'
-      runLint:
-        type: boolean
-        required: false
-        default: true
       runTests:
         type: boolean
         required: false
         default: false
+      runLint:
+        type: boolean
+        required: false
+        default: true
+      runSonarqube:
+        type: boolean
+        required: false
+        default: true
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -94,6 +98,7 @@ jobs:
       # Run Sonarqube code analysis
       - name: Run Sonarqube
         id: sonarqube
+        if: ${{ fromJSON(inputs.runSonarqube) }}
         uses: gradle/gradle-build-action@v2.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
