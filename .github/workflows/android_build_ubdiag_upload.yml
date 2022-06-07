@@ -47,7 +47,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v2.3.5
+        uses: actions/checkout@v2.4.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -64,7 +64,7 @@ jobs:
 
       # Setup the build environment with Java 11 and the Zulu OpenJDK
       - name: Setup Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3.3.0
         with:
           distribution: 'zulu'
           java-version: '11'
@@ -84,14 +84,10 @@ jobs:
 
       # Setup the build environment with Gradle
       - name: Build app
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v2.2.0
         with:
-          # Cache entries are not shared among branches. To reduce the amount of cache writes, only allow the main branch to write cache entries and let other branches read them
-          # https://github.com/gradle/gradle-build-action#only-write-to-the-cache-from-the-default-branch
-          cache-read-only: ${{ github.ref_name != 'develop' }}
           arguments: |
             :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
-            :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -113,17 +109,3 @@ jobs:
           buildUuid: ${{ steps.vars.outputs.build_uuid }}
           webIconFile: tmp_icon_large_for_backend.png
           backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
-
-      # Publish test results to pull requests
-      - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@4a00ba50806e7658e5005bb91acdb3274714595a
-        with:
-          check_name: "Unit Test Results ${{ inputs.flavor }}"
-          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
-
-      # Upload the test reports to the build artifacts
-      - name: Store Test Report in Build Artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-reports-${{ inputs.flavor }}
-          path: ${{ inputs.appModule }}/build/reports
