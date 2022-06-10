@@ -10,6 +10,10 @@ on:
         type: string
         required: false
         default: 'app'
+      runCoeus:
+        type: boolean
+        required: false
+        default: false
       runTests:
         type: boolean
         required: false
@@ -35,6 +39,15 @@ on:
         required: true
       UBIQUE_SONAR_TOKEN:
         required: true
+      ACR_REGISTRY:
+        required: false
+        description: Required if runCoeus is true
+      ACR_USERNAME:
+        required: false
+        description: Required if runCoeus is true
+      ACR_PASSWORD:
+        required: false
+        description: Required if runCoeus is true
       ADDITIONAL_GRADLE_PROPS:
         required: false
 
@@ -73,19 +86,34 @@ jobs:
 
       # Cache SonarCloud packages for future runs
       - name: Cache SonarCloud packages
+        if: ${{ fromJSON(inputs.runSonarqube) }}
         uses: actions/cache@v3.0.2
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      # Run Android Lint checks
-      - name: Run Lint
-        id: lint
-        if: ${{ fromJSON(inputs.runLint) }}
+      # Run Coeus
+      - name: Assemble the APK for static code analysis
+        id: coeus-assemble
+        if: ${{ fromJSON(inputs.runCoeus) }}
         uses: gradle/gradle-build-action@v2.2.0
         with:
-          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      - name: Docker login for Azure registry
+        id: coeus-docker-login
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Run Coeus
+        id: coeus
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        run: docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/debug/package-${{ inputs.flavor }}-debug.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker
 
       # Run Unit Tests
       - name: Run Unit Tests
@@ -94,6 +122,14 @@ jobs:
         uses: gradle/gradle-build-action@v2.2.0
         with:
           arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      # Run Android Lint checks
+      - name: Run Lint
+        id: lint
+        if: ${{ fromJSON(inputs.runLint) }}
+        uses: gradle/gradle-build-action@v2.2.0
+        with:
+          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
