@@ -113,7 +113,7 @@ jobs:
       - name: Run Coeus
         id: coeus
         if: ${{ fromJSON(inputs.runCoeus) }}
-        run: docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker >> $GITHUB_STEP_SUMMARY
+        run: docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker >> $GITHUB_STEP_SUMMARY
 
       # Run Unit Tests
       - name: Run Unit Tests
