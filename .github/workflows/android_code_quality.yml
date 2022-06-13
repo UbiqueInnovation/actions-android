@@ -99,7 +99,7 @@ jobs:
         if: ${{ fromJSON(inputs.runCoeus) }}
         uses: gradle/gradle-build-action@v2.2.0
         with:
-          arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       - name: Docker login for Azure registry
         id: coeus-docker-login
