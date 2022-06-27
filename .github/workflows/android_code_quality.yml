@@ -122,18 +122,25 @@ jobs:
           echo $OUTPUT >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      # Find and create/replace the comment the Coeus Analysis output
+      - name: Find Coeus Comment
+        id: coeus-comment-find
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        uses: peter-evans/find-comment@1769778a0c5bd330272d749d12c036d65e70d39d
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          author: "github-actions[bot]"
+          body-includes: "Coeus Binary Analysis Results"
+
       - name: Comment Coeus Output
         id: coeus-comment
         if: ${{ fromJSON(inputs.runCoeus) }}
-        uses: actions/github-script@v6
+        uses: peter-evans/create-or-update-comment@b95e16d2859ad843a14218d1028da5b2c4cbc4b4
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "${{ env.COEUS_OUTPUT }}"
-            })
+          comment-id: ${{ steps.coeus-comment-find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ env.COEUS_OUTPUT }}
+          edit-mode: replace
 
       # Run Unit Tests
       - name: Run Unit Tests
