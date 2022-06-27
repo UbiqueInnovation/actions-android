@@ -116,7 +116,7 @@ jobs:
         # See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
         # and https://github.community/t/set-output-truncates-multiline-strings/16852/
         run: |
-          docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker >> $OUTPUT
+          OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker`
           $OUTPUT >> $GITHUB_STEP_SUMMARY
           echo "COEUS_OUTPUT=<<EOF" >> $GITHUB_ENV
           echo $OUTPUT >> $GITHUB_ENV
