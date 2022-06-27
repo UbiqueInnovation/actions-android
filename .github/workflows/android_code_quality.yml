@@ -115,8 +115,9 @@ jobs:
         if: ${{ fromJSON(inputs.runCoeus) }}
         # See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
         # and https://github.community/t/set-output-truncates-multiline-strings/16852/
+        # Don't fail CI here, print comment first.
         run: |
-          OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker`
+          OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
           $OUTPUT >> $GITHUB_STEP_SUMMARY
           echo "COEUS_OUTPUT=<<EOF" >> $GITHUB_ENV
           echo $OUTPUT >> $GITHUB_ENV
@@ -141,6 +142,14 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ env.COEUS_OUTPUT }}
           edit-mode: replace
+
+      # Fail the CI if Coeus found at least one error, i.e. if grepping for an error returns a result
+      - name: Fail CI if Coeus has errors
+        id: coeus-check-fail
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        run: |
+          echo "${{ env.COEUS_OUTPUT }} | grep "[ERROR]"
+          if [ $? -ne 0 ]; then true; else false; fi
 
       # Run Unit Tests
       - name: Run Unit Tests
