@@ -118,9 +118,9 @@ jobs:
         # Don't fail CI here, print comment first.
         run: |
           OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
-          $OUTPUT >> $GITHUB_STEP_SUMMARY
+          "$OUTPUT" >> $GITHUB_STEP_SUMMARY
           echo "COEUS_OUTPUT=<<EOF" >> $GITHUB_ENV
-          echo $OUTPUT >> $GITHUB_ENV
+          echo "$OUTPUT" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       # Find and create/replace the comment the Coeus Analysis output
