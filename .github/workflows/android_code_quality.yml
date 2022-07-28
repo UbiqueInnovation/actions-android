@@ -130,7 +130,7 @@ jobs:
         uses: peter-evans/find-comment@1769778a0c5bd330272d749d12c036d65e70d39d
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          author: "github-actions[bot]"
+          comment-author: "github-actions[bot]"
           body-includes: "Coeus Binary Analysis Results"
 
       - name: Comment Coeus Output
