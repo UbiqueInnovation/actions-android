@@ -93,6 +93,49 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      # Run Unit Tests
+      - name: Run Unit Tests
+        id: tests
+        if: ${{ fromJSON(inputs.runTests) }}
+        uses: gradle/gradle-build-action@v2.2.0
+        with:
+          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      # Run Android Lint checks
+      - name: Run Lint
+        id: lint
+        if: ${{ fromJSON(inputs.runLint) }}
+        uses: gradle/gradle-build-action@v2.2.0
+        with:
+          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      # Run Sonarqube code analysis
+      - name: Run Sonarqube
+        id: sonarqube
+        if: ${{ fromJSON(inputs.runSonarqube) }}
+        uses: gradle/gradle-build-action@v2.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
+          SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
+        with:
+          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      # Publish test results to pull requests
+      - name: Publish Unit Test Results
+        if: ${{ fromJSON(inputs.runTests) }} && steps.tests.outcome == 'success'
+        uses: EnricoMi/publish-unit-test-result-action@v1.36
+        with:
+          check_name: "Unit Test Results"
+          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
+  coeus:
+    if: github.event_name == 'pull_request'
+    name: Run coeus binary analysis
+    runs-on: ubuntu-latest
+    concurrency:
+      # Cancel any previous runs that have not yet finished for this workflow and git ref
+      group: ${{ github.workflow }}-${{ github.ref }}-coeus
+      cancel-in-progress: true
+    steps:
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
@@ -150,38 +193,3 @@ jobs:
         run: |
           echo "${{ env.COEUS_OUTPUT }} | grep "[ERROR]"
           if [ $? -ne 0 ]; then true; else false; fi
-
-      # Run Unit Tests
-      - name: Run Unit Tests
-        id: tests
-        if: ${{ fromJSON(inputs.runTests) }}
-        uses: gradle/gradle-build-action@v2.2.0
-        with:
-          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
-
-      # Run Android Lint checks
-      - name: Run Lint
-        id: lint
-        if: ${{ fromJSON(inputs.runLint) }}
-        uses: gradle/gradle-build-action@v2.2.0
-        with:
-          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
-
-      # Run Sonarqube code analysis
-      - name: Run Sonarqube
-        id: sonarqube
-        if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: gradle/gradle-build-action@v2.2.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
-          SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
-        with:
-          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
-
-      # Publish test results to pull requests
-      - name: Publish Unit Test Results
-        if: ${{ fromJSON(inputs.runTests) }} && steps.tests.outcome == 'success'
-        uses: EnricoMi/publish-unit-test-result-action@v1.36
-        with:
-          check_name: "Unit Test Results"
-          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
