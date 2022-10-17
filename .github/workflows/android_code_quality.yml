@@ -130,7 +130,7 @@ jobs:
   coeus:
     if: github.event_name == 'pull_request'
     name: Run coeus binary analysis
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
       group: ${{ github.workflow }}-${{ github.ref }}-coeus
