@@ -10,6 +10,10 @@ on:
         type: string
         required: false
         default: 'app'
+      runCoeus:
+        type: boolean
+        required: false
+        default: false
       runTests:
         type: boolean
         required: false
@@ -35,6 +39,15 @@ on:
         required: true
       UBIQUE_SONAR_TOKEN:
         required: true
+      ACR_REGISTRY:
+        required: false
+        description: Required if runCoeus is true
+      ACR_USERNAME:
+        required: false
+        description: Required if runCoeus is true
+      ACR_PASSWORD:
+        required: false
+        description: Required if runCoeus is true
       ADDITIONAL_GRADLE_PROPS:
         required: false
 
@@ -73,19 +86,12 @@ jobs:
 
       # Cache SonarCloud packages for future runs
       - name: Cache SonarCloud packages
+        if: ${{ fromJSON(inputs.runSonarqube) }}
         uses: actions/cache@v3.0.2
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-
-      # Run Android Lint checks
-      - name: Run Lint
-        id: lint
-        if: ${{ fromJSON(inputs.runLint) }}
-        uses: gradle/gradle-build-action@v2.2.0
-        with:
-          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Unit Tests
       - name: Run Unit Tests
@@ -94,6 +100,14 @@ jobs:
         uses: gradle/gradle-build-action@v2.2.0
         with:
           arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      # Run Android Lint checks
+      - name: Run Lint
+        id: lint
+        if: ${{ fromJSON(inputs.runLint) }}
+        uses: gradle/gradle-build-action@v2.2.0
+        with:
+          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
@@ -113,3 +127,92 @@ jobs:
         with:
           check_name: "Unit Test Results"
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml
+  coeus:
+    if: github.event_name == 'pull_request' && ${{ fromJSON(inputs.runCoeus) }}
+    name: Run coeus binary analysis
+    runs-on: self-hosted
+    concurrency:
+      # Cancel any previous runs that have not yet finished for this workflow and git ref
+      group: ${{ github.workflow }}-${{ github.ref }}-coeus
+      cancel-in-progress: true
+    steps:
+       # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v2.4.2
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+
+      # Set build variables for reuse in multiple steps
+      - name: Set Build Variables
+        id: vars
+        run: |
+          flavor=${{ inputs.flavor }}
+          echo ::set-output name=flavor_capitalized::${flavor~}
+          gradleProps="-PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          echo ::set-output name=gradle_properties::$gradleProps
+
+      # Setup the build environment with Java 11 and the Zulu OpenJDK
+      - name: Setup Java
+        uses: actions/setup-java@v3.3.0
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      # Run Coeus
+      - name: Assemble the APK for static code analysis
+        id: coeus-assemble
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        uses: gradle/gradle-build-action@v2.2.0
+        with:
+          arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
+
+      - name: Docker login for Azure registry
+        id: coeus-docker-login
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Run Coeus
+        id: coeus
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        # See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
+        # and https://github.community/t/set-output-truncates-multiline-strings/16852/
+        # Don't fail CI here, print comment first.
+        run: |
+          OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
+          echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+          echo "COEUS_OUTPUT<<EOF" >> $GITHUB_ENV
+          echo "$OUTPUT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      # Find and create/replace the comment the Coeus Analysis output
+      - name: Find Coeus Comment
+        id: coeus-comment-find
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        uses: peter-evans/find-comment@1769778a0c5bd330272d749d12c036d65e70d39d
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "Coeus Binary Analysis Results"
+
+      - name: Comment Coeus Output
+        id: coeus-comment
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        uses: peter-evans/create-or-update-comment@b95e16d2859ad843a14218d1028da5b2c4cbc4b4
+        with:
+          comment-id: ${{ steps.coeus-comment-find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ env.COEUS_OUTPUT }}
+          edit-mode: replace
+
+      # Fail the CI if Coeus found at least one error, i.e. if grepping for an error returns a result
+      - name: Fail CI if Coeus has errors
+        id: coeus-check-fail
+        if: ${{ fromJSON(inputs.runCoeus) }}
+        run: |
+          echo "${{ env.COEUS_OUTPUT }} | grep "[ERROR]"
+          if [ $? -ne 0 ]; then true; else false; fi
