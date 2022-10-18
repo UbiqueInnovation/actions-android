@@ -128,7 +128,7 @@ jobs:
           check_name: "Unit Test Results"
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml
   coeus:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && ${{ fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
     runs-on: self-hosted
     concurrency:
