@@ -166,7 +166,11 @@ jobs:
         uses: gradle/gradle-build-action@v2.2.0
         with:
           arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
-
+      - name: Find APK
+        run:
+          |
+            apk=$(find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/ -name '.apk')
+            echo ::set-output name=apk::$apk
       - name: Docker login for Azure registry
         id: coeus-docker-login
         if: ${{ fromJSON(inputs.runCoeus) }}
@@ -175,7 +179,6 @@ jobs:
           login-server: ${{ secrets.ACR_REGISTRY }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-
       - name: Run Coeus
         id: coeus
         if: ${{ fromJSON(inputs.runCoeus) }}
@@ -183,7 +186,7 @@ jobs:
         # and https://github.community/t/set-output-truncates-multiline-strings/16852/
         # Don't fail CI here, print comment first.
         run: |
-          OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/${{ inputs.flavor }}/release/package-${{ inputs.flavor }}-release.apk:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
+          OUTPUT=`docker run -i -v ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/${{ inputs.flavor }}Release/mapping.txt:/home/coeus/mapping.txt -v ${{ steps.vars.outputs.apk }}:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
           echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
           echo "COEUS_OUTPUT<<EOF" >> $GITHUB_ENV
           echo "$OUTPUT" >> $GITHUB_ENV
