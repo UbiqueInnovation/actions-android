@@ -171,6 +171,8 @@ jobs:
         run:
           |
             apk=$(find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/ -name '.apk')
+            echo ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/
+            echo $apk
             echo "apk=$apk" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
         id: coeus-docker-login
