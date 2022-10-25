@@ -171,9 +171,6 @@ jobs:
         run:
           |
             apk=`find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-            echo ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/
-            echo `find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-            echo $apk
             echo "apk=$apk" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
         id: coeus-docker-login
@@ -221,5 +218,5 @@ jobs:
         id: coeus-check-fail
         if: ${{ fromJSON(inputs.runCoeus) }}
         run: |
-          echo "${{ env.COEUS_OUTPUT }} | grep "[ERROR]"
+          echo "${{ env.COEUS_OUTPUT }} | grep '[ERROR]'"
           if [ $? -ne 0 ]; then true; else false; fi
