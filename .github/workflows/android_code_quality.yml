@@ -220,4 +220,4 @@ jobs:
         id: coeus-check-fail
         if: ${{ fromJSON(inputs.runCoeus) }}
         run: |
-          echo '${{ env.COEUS_OUTPUT }}' | ! grep '\[ERROR\]'
+          echo '${{ env.COEUS_OUTPUT }}' | (! grep '\[ERROR\]')
