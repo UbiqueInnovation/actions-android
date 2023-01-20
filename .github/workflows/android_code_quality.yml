@@ -25,7 +25,7 @@ on:
       runSonarqube:
         type: boolean
         required: false
-        default: true
+        default: false
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
