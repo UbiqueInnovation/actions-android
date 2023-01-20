@@ -122,13 +122,13 @@ jobs:
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
-        if: ${{ fromJSON(inputs.runTests) }} && steps.tests.outcome == 'success'
+        if: ${{ fromJSON(inputs.runTests) && steps.tests.outcome == 'success' }}
         uses: EnricoMi/publish-unit-test-result-action@v1.36
         with:
           check_name: "Unit Test Results"
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml
   coeus:
-    if: github.event_name == 'pull_request' && ${{ fromJSON(inputs.runCoeus) }}
+    if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
     runs-on: self-hosted
     concurrency:
@@ -162,7 +162,6 @@ jobs:
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        if: ${{ fromJSON(inputs.runCoeus) }}
         uses: gradle/gradle-build-action@v2.2.0
         with:
           arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
@@ -176,7 +175,6 @@ jobs:
             echo "mapping=$mapping" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
         id: coeus-docker-login
-        if: ${{ fromJSON(inputs.runCoeus) }}
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.ACR_REGISTRY }}
@@ -184,7 +182,6 @@ jobs:
           password: ${{ secrets.ACR_PASSWORD }}
       - name: Run Coeus
         id: coeus
-        if: ${{ fromJSON(inputs.runCoeus) }}
         # See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
         # and https://github.community/t/set-output-truncates-multiline-strings/16852/
         # Don't fail CI here, print comment first.
@@ -198,7 +195,6 @@ jobs:
       # Find and create/replace the comment the Coeus Analysis output
       - name: Find Coeus Comment
         id: coeus-comment-find
-        if: ${{ fromJSON(inputs.runCoeus) }}
         uses: peter-evans/find-comment@1769778a0c5bd330272d749d12c036d65e70d39d
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -207,7 +203,6 @@ jobs:
 
       - name: Comment Coeus Output
         id: coeus-comment
-        if: ${{ fromJSON(inputs.runCoeus) }}
         uses: peter-evans/create-or-update-comment@b95e16d2859ad843a14218d1028da5b2c4cbc4b4
         with:
           comment-id: ${{ steps.coeus-comment-find.outputs.comment-id }}
@@ -218,6 +213,5 @@ jobs:
       # Fail the CI if Coeus found at least one error, i.e. if grepping for an error returns a result
       - name: Fail CI if Coeus has errors
         id: coeus-check-fail
-        if: ${{ fromJSON(inputs.runCoeus) }}
         run: |
           echo '${{ env.COEUS_OUTPUT }}' | (! grep '\[ERROR\]')
