@@ -186,7 +186,7 @@ jobs:
         # and https://github.community/t/set-output-truncates-multiline-strings/16852/
         # Don't fail CI here, print comment first.
         run: |
-          OUTPUT=`docker run -i -e SKIP_RULES="$SKIP_RULES" -v ${{ steps.find-apk.outputs.mapping }}:/home/coeus/mapping.txt -v ${{ steps.find-apk.outputs.apk }}:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
+          OUTPUT=`docker run -i -e SKIP_RULES="${{ env.SKIP_RULES }}" -v ${{ steps.find-apk.outputs.mapping }}:/home/coeus/mapping.txt -v ${{ steps.find-apk.outputs.apk }}:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
           echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
           echo "COEUS_OUTPUT<<EOF" >> $GITHUB_ENV
           echo "$OUTPUT" >> $GITHUB_ENV
