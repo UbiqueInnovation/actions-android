@@ -130,7 +130,7 @@ jobs:
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux]
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
       group: ${{ github.workflow }}-${{ github.ref }}-coeus
