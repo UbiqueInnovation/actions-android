@@ -34,6 +34,7 @@ jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
       group: ${{ github.workflow }}-${{ github.ref }}
