@@ -63,12 +63,12 @@ jobs:
           echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
           echo ::set-output name=flavor_capitalized::${flavor~}
 
-      # Setup the build environment with Java 17 and the Zulu OpenJDK
+      # Setup the build environment with Java 11 and the Zulu OpenJDK
       - name: Setup Java
         uses: actions/setup-java@v3.3.0
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '11'
 
       # Install Imagemagick 7 if configured to do so (6 is pre-installed)
       - name: Install imagemagick
