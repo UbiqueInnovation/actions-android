@@ -67,7 +67,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v2.4.2
+        uses: actions/checkout@v3.5.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -142,9 +142,9 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-coeus
       cancel-in-progress: true
     steps:
-       # Checkout repository and submodules
+      # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v2.4.2
+        uses: actions/checkout@v3.5.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'

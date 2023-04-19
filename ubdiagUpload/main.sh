@@ -10,6 +10,11 @@ buildUuid=${7}
 webIconFile=${8}
 backendEndpoint=${9}
 
+# Set the github workspace (which is a volume to the runner project directory) as a safe directory, because docker actions switch
+# the user context and therefore the .git directory has a different owner, leading to a "dubious ownership" exception.
+# See: https://github.com/actions/runner/issues/2033
+git config --global --add safe.directory /github/workspace
+
 # Change to the app module directory if it exists
 if [ -n "$appModuleDirectory" ]; then
   cd "$appModuleDirectory" || { echo "App module directory does not exist"; exit; }
