@@ -1,6 +1,6 @@
 name: Build and Publish Latest Docker Image
 
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   ubidag_upload:
