@@ -1,4 +1,4 @@
-FROM openjdk:17
+FROM openjdk:11
 
 # Set environment variables
 ENV ANDROID_SDK_URL https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
