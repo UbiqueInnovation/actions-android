@@ -82,12 +82,12 @@ jobs:
           gradleProps="-PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo ::set-output name=gradle_properties::$gradleProps
 
-      # Setup the build environment with Java 11 and the Zulu OpenJDK
+      # Setup the build environment with Java 17 and the Zulu OpenJDK
       - name: Setup Java
         uses: actions/setup-java@v3.3.0
         with:
           distribution: 'zulu'
-          java-version: '11'
+          java-version: '17'
 
       # Cache SonarCloud packages for future runs
       - name: Cache SonarCloud packages
@@ -159,12 +159,12 @@ jobs:
           gradleProps="-PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo ::set-output name=gradle_properties::$gradleProps
 
-      # Setup the build environment with Java 11 and the Zulu OpenJDK
+      # Setup the build environment with Java 17 and the Zulu OpenJDK
       - name: Setup Java
         uses: actions/setup-java@v3.3.0
         with:
           distribution: 'zulu'
-          java-version: '11'
+          java-version: '17'
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble

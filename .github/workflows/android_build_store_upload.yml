@@ -55,12 +55,12 @@ jobs:
           flavor=${{ inputs.flavor }}
           echo ::set-output name=flavor_capitalized::${flavor~}
 
-      # Setup the build environment with Java 11 and the Zulu OpenJDK
+      # Setup the build environment with Java 17 and the Zulu OpenJDK
       - name: Setup Java
         uses: actions/setup-java@v3.3.0
         with:
           distribution: 'zulu'
-          java-version: '11'
+          java-version: '17'
 
       # Setup the build environment with Gradle
       - name: Build and publish app
