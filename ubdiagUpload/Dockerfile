@@ -7,6 +7,16 @@ ENV ANDROID_HOME /usr/local/android-sdk-linux
 ENV ANDROID_VERSION 30
 ENV PATH ${PATH}:${ANDROID_HOME}/cmdline-tools/bin:${ANDROID_HOME}/platform-tools
 
+# Install required packages
+RUN apt-get update
+RUN apt-get install -y imagemagick git python3 python3-distutils unzip
+RUN wget https://bootstrap.pypa.io/get-pip.py
+RUN python3 get-pip.py --user
+
+# Install python dependencies
+COPY requirements.txt requirements.txt
+RUN python3 -m pip install -r requirements.txt
+
 # Download and unpack Android SDK
 RUN mkdir "$ANDROID_HOME" .android && \
     cd "$ANDROID_HOME" && \
@@ -27,16 +37,6 @@ COPY android_sdk_packages.txt $ANDROID_HOME/packages.txt
 RUN yes | ${ANDROID_HOME}/cmdline-tools/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
 RUN $ANDROID_HOME/cmdline-tools/bin/sdkmanager --sdk_root=$ANDROID_HOME --update
 RUN $ANDROID_HOME/cmdline-tools/bin/sdkmanager --sdk_root=$ANDROID_HOME --package_file=$ANDROID_HOME/packages.txt
-
-# Install required packages
-RUN apt-get update
-RUN apt-get install -y imagemagick git python3 python3-distutils
-RUN wget https://bootstrap.pypa.io/get-pip.py
-RUN python3 get-pip.py --user
-
-# Install python dependencies
-COPY requirements.txt requirements.txt
-RUN python3 -m pip install -r requirements.txt
 
 # Copy the script files
 COPY main.sh /main.sh
