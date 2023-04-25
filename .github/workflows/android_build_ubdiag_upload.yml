@@ -100,7 +100,7 @@ jobs:
 
       # Upload to UBDiag
       - name: Upload build to UBDiag
-        uses: UbiqueInnovation/actions-android/ubdiagUpload@feature/java17
+        uses: UbiqueInnovation/actions-android/ubdiagUpload@main
         with:
           buildNumber: ${{ github.run_number }}
           projectKey: ${{ inputs.projectKey }}
