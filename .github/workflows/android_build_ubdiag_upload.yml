@@ -90,7 +90,7 @@ jobs:
         run: |
           flavor=${{ inputs.flavor }}
           echo ::set-output name=build_uuid::$(cat /proc/sys/kernel/random/uuid)
-          echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+          echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
           echo ::set-output name=flavor_capitalized::${flavor~}
 
       # Setup the build environment with Java 17 and the Zulu OpenJDK
