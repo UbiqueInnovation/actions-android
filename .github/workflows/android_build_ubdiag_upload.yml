@@ -39,7 +39,7 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "linux"]
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
