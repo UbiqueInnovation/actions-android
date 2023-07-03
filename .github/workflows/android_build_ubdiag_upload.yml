@@ -20,6 +20,10 @@ on:
         type: boolean
         required: false
         default: false
+      concurrencyGroup:
+        type: string
+        required: false
+        default: ${{ github.workflow }}-${{ github.ref }}
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -41,6 +45,10 @@ jobs:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ["self-hosted", "linux"]
     timeout-minutes: 60
+    concurrency:
+      # Cancel any previous runs that have not yet finished for this workflow and git ref
+      group: ${{ inputs.concurrencyGroup }}
+      cancel-in-progress: true
     steps:
       # Checkout repository and submodules
       - name: Checkout
