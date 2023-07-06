@@ -98,6 +98,7 @@ jobs:
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
             -Pbranch=${{ github.ref_name }}
+            -PbuildNumber=${{ github.run_number }}
             -Pubappid=${{ steps.vars.outputs.build_uuid }}
             -Pwebicon=${{ steps.vars.outputs.web_icon }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
