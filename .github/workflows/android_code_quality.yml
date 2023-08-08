@@ -58,7 +58,7 @@ on:
 jobs:
   code_quality:
     name: Run code quality checks
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, stable]
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -135,7 +135,7 @@ jobs:
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, stable]
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
