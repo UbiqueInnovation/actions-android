@@ -20,6 +20,10 @@ on:
         type: boolean
         required: false
         default: false
+      concurrencyGroup:
+        type: string
+        required: false
+        default: ${{ github.workflow }}-${{ github.ref }}
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -39,11 +43,11 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "linux", "stable"]
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ inputs.concurrencyGroup }}
       cancel-in-progress: true
     steps:
       # Checkout repository and submodules
@@ -94,6 +98,7 @@ jobs:
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
             -Pbranch=${{ github.ref_name }}
+            -PbuildNumber=${{ github.run_number }}
             -Pubappid=${{ steps.vars.outputs.build_uuid }}
             -Pwebicon=${{ steps.vars.outputs.web_icon }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
