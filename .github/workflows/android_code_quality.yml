@@ -67,7 +67,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v3.5.2
+        uses: actions/checkout@v3.6.0
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -84,7 +84,7 @@ jobs:
 
       # Setup the build environment with Java 17 and the Zulu OpenJDK
       - name: Setup Java
-        uses: actions/setup-java@v3.3.0
+        uses: actions/setup-java@v3.12.0
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -92,7 +92,7 @@ jobs:
       # Cache SonarCloud packages for future runs
       - name: Cache SonarCloud packages
         if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: actions/cache@v3.0.2
+        uses: actions/cache@v3.3.1
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -102,7 +102,7 @@ jobs:
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.runTests) }}
-        uses: gradle/gradle-build-action@v2.2.0
+        uses: gradle/gradle-build-action@v2.8.0
         with:
           arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
 
@@ -110,7 +110,7 @@ jobs:
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.runLint) }}
-        uses: gradle/gradle-build-action@v2.2.0
+        uses: gradle/gradle-build-action@v2.8.0
         with:
           arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
@@ -118,7 +118,7 @@ jobs:
       - name: Run Sonarqube
         id: sonarqube
         if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: gradle/gradle-build-action@v2.2.0
+        uses: gradle/gradle-build-action@v2.8.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
@@ -144,7 +144,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v3.5.2
+        uses: actions/checkout@v3.6.0
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -161,14 +161,14 @@ jobs:
 
       # Setup the build environment with Java 17 and the Zulu OpenJDK
       - name: Setup Java
-        uses: actions/setup-java@v3.3.0
+        uses: actions/setup-java@v3.12.0
         with:
           distribution: 'zulu'
           java-version: '17'
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        uses: gradle/gradle-build-action@v2.2.0
+        uses: gradle/gradle-build-action@v2.8.0
         with:
           arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
       - name: Find APK and Mapping
