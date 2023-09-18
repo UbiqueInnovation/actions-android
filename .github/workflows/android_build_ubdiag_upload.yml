@@ -20,6 +20,23 @@ on:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
+      self_hosted_cache_endpoint:
+          required: false
+          default: 'truenas.local.lan'
+          type: string
+          description: Should be set for selfhosted builds, but build won't fail without it
+      self_hosted_cache_port:
+          required: false
+          default: 9000
+          type: number
+      self_hosted_cache_bucket:
+          required: false
+          default: github-actions-cache
+          type: string
+      self_hosted_cache_region:
+          required: false
+          default: local
+          type: string
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -34,6 +51,11 @@ on:
       UBDIAG_UPLOAD_URL:
         required: true
       ADDITIONAL_GRADLE_PROPS:
+        required: false
+      self_hosted_cache_access_key:
+        required: false
+        description: Must be set to use selfhosted cache
+      self_hosted_cache_secret_key:
         required: false
 
 jobs:
@@ -70,10 +92,29 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      -   name: Cache Maven packages on self-hosted MinIO
+          uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
+          with:
+              endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+              port: ${{ inputs.self_hosted_cache_port }}
+              insecure: true
+              accessKey: ${{ secrets.self_hosted_cache_access_key }}
+              secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+              bucket: ${{ inputs.self_hosted_cache_bucket }}
+              region: ${{ inputs.self_hosted_cache_region }}
+              use-fallback: true
+              path: |
+                ~/.gradle/caches
+                ~/.gradle/wrapper
+              key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+              restore-keys: |
+                ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
+
       # Setup the build environment with Gradle
       - name: Build app
         uses: gradle/gradle-build-action@v2.8.0
         with:
+          cache-disabled: true
           arguments: |
             :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
@@ -98,3 +139,5 @@ jobs:
           buildUuid: ${{ steps.vars.outputs.build_uuid }}
           webIconFile: tmp_icon_large_for_backend.png
           backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
+          self_hosted_cache_access_key: ${{ secrets.self_hosted_cache_access_key }}
+          self_hosted_cache_secret_key: ${{ secrets.self_hosted_cache_secret_key }}
