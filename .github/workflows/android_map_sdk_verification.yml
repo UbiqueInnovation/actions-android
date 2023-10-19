@@ -1,0 +1,157 @@
+name: Build and Upload to UBDiag
+
+on:
+  workflow_call:
+    inputs:
+      appModule:
+        type: string
+        required: false
+        default: 'app'
+      sharedlibModule:
+        type: string
+        required: false
+        default: 'mod_sharedlib'
+      concurrencyGroup:
+        type: string
+        required: false
+        default: ${{ github.workflow }}-${{ github.ref }}
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
+
+jobs:
+  build:
+    name: Verify Map SDK builds
+    runs-on: ["self-hosted", "linux", "stable"]
+    timeout-minutes: 60
+    concurrency:
+      # Cancel any previous runs that have not yet finished for the configured concurrency group
+      group: ${{ inputs.concurrencyGroup }}
+      cancel-in-progress: true
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v3.6.0
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+
+      - name: Check Map SDK build versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
+        run: |
+          cd ${{ inputs.sharedlibModule }}
+          
+          # Get the submodule names and the checked out commit hashes
+          module_names=($(git submodule | awk '{ print $2 }'))
+          module_hashes=($(git submodule | awk '{ print $1 }'))
+          
+          semantic_version_regex="^[0-9]+\.[0-9]+\.[0-9]+$"
+          
+          echo "| Module | Sharedlib Artifact Version | Gradle Artifact Version | Status |" >> $GITHUB_STEP_SUMMARY
+          
+          for i in ${!module_names[@]}; do
+            # Drop the "external/" prefix we use for map-sdk submodules
+            module=$(echo "${module_names[i]}" | sed 's:.*/::')
+          
+            # Ignore djinni submodule
+            if [ $module != "djinni" ]; then
+              echo "Verifying submodule: $module"
+          
+              # Get the checked out commit hash for this submodule
+              commit_hash=${module_hashes[i]}
+              echo "Checked out commit hash: $commit_hash"
+          
+              # Get information on the workflow run
+              workflow_run_json=$(
+                curl -L -s \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer $GITHUB_TOKEN " \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  https://api.github.com/repos/openmobilemaps/$module/actions/runs?head_sha=$commit_hash
+              )
+            
+              # Get the head branch that triggered the workflow. If it is a semantic version, this was a release build, otherwise it's a dev build
+              head_branch=$(echo $workflow_run_json | jq -r '.workflow_runs[0].head_branch')
+              is_dev_artifact=true
+              if [[ $head_branch =~ $semantic_version_regex ]]; then
+                is_dev_artifact=false
+              fi
+            
+              # If it's a dev artifact, we also need to know which version number was configured during the workflow run
+              if $is_dev_artifact ; then
+                # Get the GitHub workflow run number associated with this commit hash
+                run_number=$(echo $workflow_run_json | jq -r '.workflow_runs[0].run_number')
+                
+                if [ $run_number == null ]; then
+                  echo "No workflow run for this commit hash. That probably means it is a branch without workflow runs"
+                fi
+                
+                # Get the GitHub workflow run URL
+                run_link=$(echo $workflow_run_json | jq -r '.workflow_runs[0].html_url')
+                
+                if [ $run_link != null ]; then
+                  echo "Workflow run URL: $run_link"
+                fi
+            
+                # Get the version name that was configured in the gradle.properties file in this commit hash
+                version_name=$(
+                  curl -L -s \
+                    -H "Accept: application/vnd.github.v3.raw" \
+                    -H "Authorization: Bearer $GITHUB_TOKEN" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    https://api.github.com/repos/openmobilemaps/$module/contents/android/gradle.properties?ref=$commit_hash | sed -n -e 's/^.*VERSION_NAME=//p'
+                )
+            
+                if [ $version_name == null ]; then
+                  echo "Could not find gradle version name"
+                else
+                  # This is assuming the following things:
+                  # 1. Our artifacts are published using the gradle.properties VERSION_NAME
+                  # 2. Our artifact versions are suffixed with the GitHub run number
+                  sharedlib_artifact_version="$version_name.$run_number"
+                fi
+              else
+                sharedlib_artifact_version=$head_branch
+              fi
+            
+              if [ $sharedlib_artifact_version != null ]; then
+                echo "Artifact version used in sharedlib: $sharedlib_artifact_version"
+            
+                case $module in
+                  "maps-core")
+                    group="io.openmobilemaps"
+                    artifact="mapscore"
+                    ;;
+                  "layer-gps")
+                    group="io.openmobilemaps"
+                    artifact=$module
+                    ;;
+                  "offline-map-sdk")
+                    group="io.openmobilemaps"
+                    artifact=$module
+                    ;;
+                  "smartdrawing-shared")
+                    group="io.openmobilemaps"
+                    artifact="smartdrawing"
+                    ;;
+                esac
+            
+                if $is_dev_artifact ; then
+                  artifact="$artifact-dev"
+                fi
+            
+                gradle_artifact_version=$(grep -o "$group:$artifact:[0-9.]*" ${{ github.workspace }}/${{ inputs.appModule }}/build.gradle | sed "s/$group:$artifact://")
+                echo "Artifact version used in build.gradle: $group:$artifact:$gradle_artifact_version"
+            
+                if [ "$sharedlib_artifact_version" != "$gradle_artifact_version" ]; then
+                  echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ✅ |" >> $GITHUB_STEP_SUMMARY
+                else
+                  echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+                fi
+              fi
+            
+              echo "-----"
+            fi
+          done
