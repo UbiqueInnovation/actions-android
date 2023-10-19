@@ -53,8 +53,8 @@ jobs:
           
           semantic_version_regex="^[0-9]+\.[0-9]+\.[0-9]+$"
           
-          echo "| Module | Sharedlib Artifact Version | Gradle Artifact Version | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Sharedlib Commit Hash | Sharedlib Artifact Version | Gradle Artifact Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- | --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
           
           has_artifact_mismatch=false
           for i in ${!module_names[@]}; do
@@ -158,10 +158,10 @@ jobs:
                 echo "Artifact version used in build.gradle: $group:$artifact:$gradle_artifact_version"
             
                 if [[ "$sharedlib_artifact_version" != "$gradle_artifact_version" ]]; then
-                  echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+                  echo "| $module | $commit_hash | $sharedlib_artifact_version | $gradle_artifact_version | ⚠️ |" >> $GITHUB_STEP_SUMMARY
                   has_artifact_mismatch=true
                 else
-                  echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ✅ |" >> $GITHUB_STEP_SUMMARY
+                  echo "| $module | $commit_hash | $sharedlib_artifact_version | $gradle_artifact_version | ✅ |" >> $GITHUB_STEP_SUMMARY
                 fi
               fi
             
