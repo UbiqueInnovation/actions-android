@@ -11,6 +11,10 @@ on:
         type: string
         required: false
         default: 'mod_sharedlib'
+      failOnMismatch:
+        type: boolean
+        required: false
+        default: false
       concurrencyGroup:
         type: string
         required: false
@@ -50,7 +54,9 @@ jobs:
           semantic_version_regex="^[0-9]+\.[0-9]+\.[0-9]+$"
           
           echo "| Module | Sharedlib Artifact Version | Gradle Artifact Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
           
+          has_artifact_mismatch=false
           for i in ${!module_names[@]}; do
             # Drop the "external/" prefix we use for map-sdk submodules
             module=$(echo "${module_names[i]}" | sed 's:.*/::')
@@ -146,12 +152,17 @@ jobs:
                 echo "Artifact version used in build.gradle: $group:$artifact:$gradle_artifact_version"
             
                 if [ "$sharedlib_artifact_version" != "$gradle_artifact_version" ]; then
-                  echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ✅ |" >> $GITHUB_STEP_SUMMARY
-                else
                   echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+                  has_artifact_mismatch=true
+                else
+                  echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ✅ |" >> $GITHUB_STEP_SUMMARY
                 fi
               fi
             
               echo "-----"
             fi
           done
+          
+          if [ "${{ inputs.failOnMismatch }}" = "true" ] &&  $has_artifact_mismatch ; then
+            exit 1
+          fi
