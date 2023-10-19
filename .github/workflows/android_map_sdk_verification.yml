@@ -62,7 +62,7 @@ jobs:
             module=$(echo "${module_names[i]}" | sed 's:.*/::')
           
             # Ignore djinni submodule
-            if [ $module != "djinni" ]; then
+            if [[ $module != "djinni" ]]; then
               echo "Verifying submodule: $module"
           
               # Get the checked out commit hash for this submodule
@@ -78,26 +78,32 @@ jobs:
                   https://api.github.com/repos/openmobilemaps/$module/actions/runs?head_sha=$commit_hash
               )
             
+              # Most of our repositories will have multiple workflows running (e.g. Android & iOS), so check which one contains the word Artifactory, Sonatype or Android in the workflow name
+              workflow_index=$(echo "$workflow_run_json" | jq -r '.workflow_runs | map(.name | test("artifactory|sonatype|android"; "i")) | index(true)')
+              if [[ $workflow_index == null ]]; then
+                workflow_index=0
+              fi
+
               # Get the head branch that triggered the workflow. If it is a semantic version, this was a release build, otherwise it's a dev build
-              head_branch=$(echo $workflow_run_json | jq -r '.workflow_runs[0].head_branch')
+              head_branch=$(echo $workflow_run_json | jq -r ".workflow_runs[$workflow_index].head_branch")
               is_dev_artifact=true
               if [[ $head_branch =~ $semantic_version_regex ]]; then
                 is_dev_artifact=false
               fi
             
               # If it's a dev artifact, we also need to know which version number was configured during the workflow run
-              if $is_dev_artifact ; then
+              if [[ $is_dev_artifact ]]; then
                 # Get the GitHub workflow run number associated with this commit hash
-                run_number=$(echo $workflow_run_json | jq -r '.workflow_runs[0].run_number')
+                run_number=$(echo $workflow_run_json | jq -r ".workflow_runs[$workflow_index].run_number")
                 
-                if [ $run_number == null ]; then
+                if [[ $run_number == null ]]; then
                   echo "No workflow run for this commit hash. That probably means it is a branch without workflow runs"
                 fi
                 
                 # Get the GitHub workflow run URL
-                run_link=$(echo $workflow_run_json | jq -r '.workflow_runs[0].html_url')
+                run_link=$(echo $workflow_run_json | jq -r ".workflow_runs[$workflow_index].html_url")
                 
-                if [ $run_link != null ]; then
+                if [[ $run_link != null ]]; then
                   echo "Workflow run URL: $run_link"
                 fi
             
@@ -110,7 +116,7 @@ jobs:
                     https://api.github.com/repos/openmobilemaps/$module/contents/android/gradle.properties?ref=$commit_hash | sed -n -e 's/^.*VERSION_NAME=//p'
                 )
             
-                if [ $version_name == null ]; then
+                if [[ $version_name == null ]]; then
                   echo "Could not find gradle version name"
                 else
                   # This is assuming the following things:
@@ -122,7 +128,7 @@ jobs:
                 sharedlib_artifact_version=$head_branch
               fi
             
-              if [ $sharedlib_artifact_version != null ]; then
+              if [[ $sharedlib_artifact_version != null ]]; then
                 echo "Artifact version used in sharedlib: $sharedlib_artifact_version"
             
                 case $module in
@@ -144,14 +150,14 @@ jobs:
                     ;;
                 esac
             
-                if $is_dev_artifact ; then
+                if [[ $is_dev_artifact ]]; then
                   artifact="$artifact-dev"
                 fi
             
                 gradle_artifact_version=$(grep -o "$group:$artifact:[0-9.]*" ${{ github.workspace }}/${{ inputs.appModule }}/build.gradle | sed "s/$group:$artifact://")
                 echo "Artifact version used in build.gradle: $group:$artifact:$gradle_artifact_version"
             
-                if [ "$sharedlib_artifact_version" != "$gradle_artifact_version" ]; then
+                if [[ "$sharedlib_artifact_version" != "$gradle_artifact_version" ]]; then
                   echo "| $module | $sharedlib_artifact_version | $gradle_artifact_version | ⚠️ |" >> $GITHUB_STEP_SUMMARY
                   has_artifact_mismatch=true
                 else
