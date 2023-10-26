@@ -30,6 +30,24 @@ on:
         type: boolean
         required: false
         default: false
+      self_hosted_cache_endpoint:
+          required: false
+          default: 'truenas.local.lan'
+          type: string
+          description: Should be set for selfhosted builds, but build won't fail without it
+      self_hosted_cache_port:
+          required: false
+          default: 9000
+          type: number
+      self_hosted_cache_bucket:
+          required: false
+          default: github-actions-cache
+          type: string
+      self_hosted_cache_region:
+          required: false
+          default: local
+          type: string
+  
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -53,6 +71,11 @@ on:
         required: false
         description: Required if runCoeus is true
       ADDITIONAL_GRADLE_PROPS:
+        required: false
+      self_hosted_cache_access_key:
+        required: false
+        description: Must be set to use selfhosted cache
+      self_hosted_cache_secret_key:
         required: false
 
 jobs:
@@ -89,11 +112,18 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # Cache SonarCloud packages for future runs
-      - name: Cache SonarCloud packages
+      - name: Cache SonarCloud packages on selfhosted MinIO
         if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: actions/cache@v3.3.1
+        uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
         with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: false
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
