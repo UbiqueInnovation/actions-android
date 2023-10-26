@@ -116,19 +116,17 @@ jobs:
         if: ${{ fromJSON(inputs.runSonarqube) }}
         uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
         with:
-            endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-            port: ${{ inputs.self_hosted_cache_port }}
-            insecure: true
-            accessKey: ${{ secrets.self_hosted_cache_access_key }}
-            secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-            bucket: ${{ inputs.self_hosted_cache_bucket }}
-            region: ${{ inputs.self_hosted_cache_region }}
-            use-fallback: false
-            path: |
-              ~/.sonar/cache
-              ~/.gradle/wrapper
-            key: ${{ runner.os }}-sonar
-            restore-keys: ${{ runner.os }}-sonar
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: false
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
       # Run Unit Tests
       - name: Run Unit Tests
