@@ -1,0 +1,17 @@
+name: "Upload build to UBDiag"
+description: "Upload build to UBDiag"
+runs:
+  using: "composite"
+  steps:
+    - uses: UbiqueInnovation/ubdiag-upload-action@v1.1.1
+      with:
+        buildNumber: ${{ github.run_number }}
+        projectKey: ${{ inputs.projectKey }}
+        flavor: ${{ inputs.flavor }}
+        app: ${{ inputs.app }}
+        appModuleDirectory: './${{ inputs.appModule }}'
+        buildUuid: ${{ steps.vars.outputs.build_uuid }}
+        webIconFile: tmp_icon_large_for_backend.png
+        backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
+        self_hosted_cache_access_key: ${{ secrets.self_hosted_cache_access_key }}
+        self_hosted_cache_secret_key: ${{ secrets.self_hosted_cache_secret_key }}
