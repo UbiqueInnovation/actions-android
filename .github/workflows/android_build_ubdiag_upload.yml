@@ -20,6 +20,14 @@ on:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
+      sentryOrg:
+        type: string
+        required: false
+        default: 'ubique'
+      sentryUrl:
+        type: string
+        required: false
+        default: 'https://sentry.ubique.ch/'
       self_hosted_cache_endpoint:
           required: false
           default: 'truenas.local.lan'
@@ -51,8 +59,6 @@ on:
       UBDIAG_UPLOAD_URL:
         required: true
       ADDITIONAL_GRADLE_PROPS:
-        required: false
-      SENTRY_ORG:
         required: false
       SENTRY_AUTH_TOKEN:
         required: false
@@ -129,9 +135,10 @@ jobs:
             -Pbuildnumber=${{ github.run_number }}
             -Pubappid=${{ steps.vars.outputs.build_uuid }}
             -Pwebicon=${{ steps.vars.outputs.web_icon }}
+            -PsentryOrg=${{ inputs.sentryOrg }}
+            -PsentryUrl=${{ inputs.sentryUrl }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
             
 
