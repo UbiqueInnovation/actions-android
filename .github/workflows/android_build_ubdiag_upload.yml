@@ -52,6 +52,8 @@ on:
         required: true
       ADDITIONAL_GRADLE_PROPS:
         required: false
+      SENTRY_AUTH_TOKEN:
+        required: false
       self_hosted_cache_access_key:
         required: false
         description: Must be set to use selfhosted cache
@@ -126,6 +128,9 @@ jobs:
             -Pubappid=${{ steps.vars.outputs.build_uuid }}
             -Pwebicon=${{ steps.vars.outputs.web_icon }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+            
 
       # Upload to UBDiag
       - name: Upload build to UBDiag
