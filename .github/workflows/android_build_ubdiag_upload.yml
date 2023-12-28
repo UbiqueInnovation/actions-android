@@ -20,6 +20,11 @@ on:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
+      workingDirectory:
+        type: string
+        default: './'
+        required: false
+        description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
       self_hosted_cache_endpoint:
           required: false
           default: 'truenas.local.lan'
@@ -47,7 +52,7 @@ on:
       UB_ARTIFACTORY_PASSWORD:
         required: true
       UBIQUE_POEDITOR_API_KEY:
-        required: true
+        required: false
       UBDIAG_UPLOAD_URL:
         required: true
       ADDITIONAL_GRADLE_PROPS:
@@ -64,6 +69,9 @@ jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ["self-hosted", "linux", "stable"]
+    defaults:
+      run:
+        working-directory: ${{ inputs.workingDirectory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for the configured concurrency group
@@ -84,7 +92,7 @@ jobs:
         run: |
           flavor=${{ inputs.flavor }}
           echo ::set-output name=build_uuid::$(cat /proc/sys/kernel/random/uuid)
-          echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+          echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
           echo ::set-output name=flavor_capitalized::${flavor~}
 
       # Setup the build environment with Java 17 and the Zulu OpenJDK
@@ -117,6 +125,7 @@ jobs:
         uses: gradle/gradle-build-action@v2.8.0
         with:
           cache-disabled: true
+          build-root-directory: ${{ inputs.workingDirectory }}
           arguments: |
             :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
@@ -140,7 +149,7 @@ jobs:
           projectKey: ${{ inputs.projectKey }}
           flavor: ${{ inputs.flavor }}
           app: ${{ inputs.app }}
-          appModuleDirectory: './${{ inputs.appModule }}'
+          appModuleDirectory: '${{ inputs.workingDirectory }}${{ inputs.appModule }}'
           buildUuid: ${{ steps.vars.outputs.build_uuid }}
           webIconFile: tmp_icon_large_for_backend.png
           backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
