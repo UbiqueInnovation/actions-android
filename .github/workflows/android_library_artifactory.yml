@@ -69,6 +69,7 @@ jobs:
 
       # Append version name suffix
       - name: Append version name suffix
+        if: ${{ inputs.versionNameSuffix }} != ''
         run: |
           sed -i "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
 
