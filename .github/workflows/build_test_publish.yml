@@ -1,41 +1,51 @@
-name: "Build and Upload to UBDiag"
-description: "Build and Upload to UBDiag"
+name: Build and Upload to UBDiag
 
 inputs:
   projectKey:
-    type: string
     required: true
   app:
-    type: string
     required: true
   flavor:
-    type: string
     required: true
   appModule:
-    type: string
     required: false
     default: 'app'
   self_hosted_cache_endpoint:
     required: false
     default: 'truenas.local.lan'
-    type: string
     description: Should be set for selfhosted builds, but build won't fail without it
   self_hosted_cache_port:
     required: false
-    default: 9000
-    type: number
+    default: '9000'
   self_hosted_cache_bucket:
     required: false
     default: github-actions-cache
-    type: string
   self_hosted_cache_region:
     required: false
     default: local
-    type: string
   do_store_upload:
     required: false
-    default: false
-    type: boolean
+    default: no
+  ANDROID_JENKINS_PAT:
+    required: true
+  UB_ARTIFACTORY_URL_ANDROID:
+    required: true
+  UB_ARTIFACTORY_USERNAME:
+    required: true
+  UB_ARTIFACTORY_PASSWORD:
+    required: true
+  UBIQUE_POEDITOR_API_KEY:
+    required: true
+  ADDITIONAL_GRADLE_PROPS:
+    required: false
+  SENTRY_AUTH_TOKEN:
+    required: false
+  UPLOAD_KEY_STORE_PASSWORD:
+    required: true
+  UPLOAD_KEY_PASSWORD:
+    required: true
+  ANDROID_PUBLISHER_CREDENTIALS:
+    required: true
 
 runs:
   using: "composite"
@@ -44,7 +54,7 @@ runs:
     - name: Checkout
       uses: actions/checkout@v3.6.0
       with:
-        token: ${{ secrets.ANDROID_JENKINS_PAT }}
+        token: ${{ inputs.ANDROID_JENKINS_PAT }}
         submodules: 'recursive'
         lfs: 'true'
 
@@ -66,14 +76,14 @@ runs:
         java-version: '17'
 
     - name: Cache Maven packages on self-hosted MinIO
-      if: ${{ fromJSON(inputs.do_store_upload) == false }}
+      if: ${{ inputs.do_store_upload == 'no' }}
       uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
       with:
         endpoint: ${{ inputs.self_hosted_cache_endpoint }}
         port: ${{ inputs.self_hosted_cache_port }}
         insecure: true
-        accessKey: ${{ secrets.self_hosted_cache_access_key }}
-        secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+        accessKey: ${{ inputs.self_hosted_cache_access_key }}
+        secretKey: ${{ inputs.self_hosted_cache_secret_key }}
         bucket: ${{ inputs.self_hosted_cache_bucket }}
         region: ${{ inputs.self_hosted_cache_region }}
         use-fallback: true
@@ -94,15 +104,15 @@ runs:
     - name: Assemble app
       shell: bash
       run: ./gradlew :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
-        -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-        -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
-        -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-        -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+        -PubiqueMavenUrl=${{ inputs.UB_ARTIFACTORY_URL_ANDROID }}
+        -PubiqueMavenUser=${{ inputs.UB_ARTIFACTORY_USERNAME }}
+        -PubiqueMavenPass=${{ inputs.UB_ARTIFACTORY_PASSWORD }}
+        -PubiquePoEditorAPIKey=${{ inputs.UBIQUE_POEDITOR_API_KEY }}
         -Pbranch=${{ github.ref_name }}
         -Pbuildnumber=${{ github.run_number }}
         -Pubappid=${{ steps.vars.outputs.build_uuid }}
         -Pwebicon=${{ steps.vars.outputs.web_icon }}
-        ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        ${{ inputs.ADDITIONAL_GRADLE_PROPS }}
 
     # Upload to UBDiag
     - name: Upload build to UBDiag
@@ -115,17 +125,17 @@ runs:
         appModuleDirectory: './${{ inputs.appModule }}'
         buildUuid: ${{ steps.vars.outputs.build_uuid }}
         webIconFile: tmp_icon_large_for_backend.png
-        backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
-        self_hosted_cache_access_key: ${{ secrets.self_hosted_cache_access_key }}
-        self_hosted_cache_secret_key: ${{ secrets.self_hosted_cache_secret_key }}
+        backendEndpoint: ${{ inputs.UBDIAG_UPLOAD_URL }}
+        self_hosted_cache_access_key: ${{ inputs.self_hosted_cache_access_key }}
+        self_hosted_cache_secret_key: ${{ inputs.self_hosted_cache_secret_key }}
 
     # Setup the build environment with Gradle
     - name: Publish the app
-      if: ${{ fromJSON(inputs.do_store_upload) }}
+      if: ${{ inputs.do_store_upload == 'yes' }}
       shell: bash
       run: ./gradlew :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
       env:
-        UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
-        UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
-        ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
-        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        UPLOAD_KEY_STORE_PASSWORD: ${{ inputs.UPLOAD_KEY_STORE_PASSWORD }}
+        UPLOAD_KEY_PASSWORD: ${{ inputs.UPLOAD_KEY_PASSWORD }}
+        ANDROID_PUBLISHER_CREDENTIALS: ${{ inputs.ANDROID_PUBLISHER_CREDENTIALS }}
+        SENTRY_AUTH_TOKEN: ${{ inputs.SENTRY_AUTH_TOKEN }}
