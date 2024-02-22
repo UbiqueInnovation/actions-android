@@ -23,6 +23,8 @@ on:
         required: true
       ADDITIONAL_GRADLE_PROPS:
         required: false
+      SENTRY_AUTH_TOKEN:
+        required: false
       UPLOAD_KEY_STORE_PASSWORD:
         required: true
       UPLOAD_KEY_PASSWORD:
@@ -77,3 +79,4 @@ jobs:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
