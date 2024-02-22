@@ -46,6 +46,13 @@ inputs:
     required: true
   ANDROID_PUBLISHER_CREDENTIALS:
     required: true
+  UBDIAG_UPLOAD_URL:
+    required: true
+  self_hosted_cache_access_key:
+    required: false
+    description: Must be set to use selfhosted cache
+  self_hosted_cache_secret_key:
+    required: false
 
 runs:
   using: "composite"
