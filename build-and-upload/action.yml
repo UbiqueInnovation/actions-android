@@ -96,7 +96,7 @@ runs:
 
     # Setup the build environment with Gradle
     - name: Setup Gradle
-      uses: actions/setup-gradle@v3.1.0
+      uses: gradle/actions/setup-gradle@v3.1.0
       with:
         cache-disabled: true
 
