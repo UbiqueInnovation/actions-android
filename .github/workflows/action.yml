@@ -66,7 +66,7 @@ runs:
         java-version: '17'
 
     - name: Cache Maven packages on self-hosted MinIO
-      if: ${{ inputs.do_store_upload == false }}
+      if: ${{ fromJSON(inputs.do_store_upload) == false }}
       uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
       with:
         endpoint: ${{ inputs.self_hosted_cache_endpoint }}
@@ -121,7 +121,7 @@ runs:
 
     # Setup the build environment with Gradle
     - name: Publish the app
-      if: ${{ inputs.do_store_upload == true }}
+      if: ${{ fromJSON(inputs.do_store_upload) }}
       shell: bash
       run: ./gradlew :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
       env:
