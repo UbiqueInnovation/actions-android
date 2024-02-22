@@ -32,6 +32,10 @@ inputs:
     required: false
     default: local
     type: string
+  do_store_upload:
+    required: false
+    default: false
+    type: boolean
 
 runs:
   using: "composite"
@@ -47,6 +51,7 @@ runs:
     # Set build variables for reuse in multiple steps
     - name: Set Build Variables
       id: vars
+      shell: bash
       run: |
         flavor=${{ inputs.flavor }}
         echo ::set-output name=build_uuid::$(cat /proc/sys/kernel/random/uuid)
@@ -60,40 +65,44 @@ runs:
         distribution: 'zulu'
         java-version: '17'
 
-    -   name: Cache Maven packages on self-hosted MinIO
-        uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
-        with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
-          use-fallback: true
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
+    - name: Cache Maven packages on self-hosted MinIO
+      if: ${{ inputs.do_store_upload == false }}
+      uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
+      with:
+        endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+        port: ${{ inputs.self_hosted_cache_port }}
+        insecure: true
+        accessKey: ${{ secrets.self_hosted_cache_access_key }}
+        secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+        bucket: ${{ inputs.self_hosted_cache_bucket }}
+        region: ${{ inputs.self_hosted_cache_region }}
+        use-fallback: true
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
 
     # Setup the build environment with Gradle
-    - name: Build app
-      uses: gradle/gradle-build-action@v2.8.0
+    - name: Setup Gradle
+      uses: gradle/setup-gradle@v3.1.0
       with:
         cache-disabled: true
-        arguments: |
-          :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
-          -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-          -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
-          -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-          -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
-          -Pbranch=${{ github.ref_name }}
-          -Pbuildnumber=${{ github.run_number }}
-          -Pubappid=${{ steps.vars.outputs.build_uuid }}
-          -Pwebicon=${{ steps.vars.outputs.web_icon }}
-          ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+
+    # Assemble app
+    - name: Assemble app
+      shell: bash
+      run: ./gradlew :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
+        -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+        -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+        -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+        -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+        -Pbranch=${{ github.ref_name }}
+        -Pbuildnumber=${{ github.run_number }}
+        -Pubappid=${{ steps.vars.outputs.build_uuid }}
+        -Pwebicon=${{ steps.vars.outputs.web_icon }}
+        ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
 
     # Upload to UBDiag
     - name: Upload build to UBDiag
@@ -109,3 +118,14 @@ runs:
         backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
         self_hosted_cache_access_key: ${{ secrets.self_hosted_cache_access_key }}
         self_hosted_cache_secret_key: ${{ secrets.self_hosted_cache_secret_key }}
+
+    # Setup the build environment with Gradle
+    - name: Publish the app
+      if: ${{ inputs.do_store_upload == true }}
+      shell: bash
+      run: ./gradlew :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+      env:
+        UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
+        UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
