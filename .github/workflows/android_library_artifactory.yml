@@ -13,11 +13,6 @@ on:
         required: false
         default: 'lib'
         description: 'The name of the gradle module of the library (similar to the app module)'
-      usesVanniktech:
-        type: boolean
-        default: true
-        required: false
-        description: 'True if the library uses the Vanniktech publish plugin, false if it uses the standard maven-pubish plugin'
       versionNameSuffix:
         type: string
         default: ''
@@ -73,9 +68,8 @@ jobs:
         run: |
           sed -i "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
 
-      # Run the Vanniktech Gradle publish task
+      # Run the Gradle publish task
       - name: Build and publish artifact
-        if: ${{ fromJSON(inputs.usesVanniktech) }}
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           build-root-directory: ${{ inputs.workingDirectory }}
