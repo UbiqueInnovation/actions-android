@@ -64,9 +64,15 @@ jobs:
 
       # Append version name suffix
       - name: Append version name suffix
+        id: version
         if: ${{ inputs.versionNameSuffix }} != ''
         run: |
-          sed -i "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
+          if grep -q "VERSION_NAME=" ${{ inputs.gradlePropertiesPath }}; then
+            sed -i "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
+          else
+            echo "Could not find VERSION_NAME gradle property in ${{ inputs.gradlePropertiesPath }}"
+            exit 1
+          fi
 
       # Run the Gradle publish task
       - name: Build and publish artifact
