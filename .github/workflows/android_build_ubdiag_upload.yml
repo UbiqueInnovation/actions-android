@@ -80,7 +80,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v3.6.0
+        uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -91,19 +91,21 @@ jobs:
         id: vars
         run: |
           flavor=${{ inputs.flavor }}
-          echo ::set-output name=build_uuid::$(cat /proc/sys/kernel/random/uuid)
-          echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
-          echo ::set-output name=flavor_capitalized::${flavor~}
+          buildUuid=$(cat /proc/sys/kernel/random/uuid)
+          webIconPath=${{ github.workspace }}/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+          echo "build_uuid=$buildUuid" >> "$GITHUB_OUTPUT"
+          echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
 
-      # Setup the build environment with Java 17 and the Zulu OpenJDK
-      - name: Setup Java
-        uses: actions/setup-java@v3.12.0
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
       -   name: Cache Maven packages on self-hosted MinIO
-          uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
+          uses: tespkg/actions-cache@v1.7.1
           with:
               endpoint: ${{ inputs.self_hosted_cache_endpoint }}
               port: ${{ inputs.self_hosted_cache_port }}
@@ -122,7 +124,7 @@ jobs:
 
       # Setup the build environment with Gradle
       - name: Build app
-        uses: gradle/gradle-build-action@v2.8.0
+        uses: gradle/actions/setup-gradle@v3.1.0
         with:
           cache-disabled: true
           build-root-directory: ${{ inputs.workingDirectory }}
