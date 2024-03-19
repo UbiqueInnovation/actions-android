@@ -90,7 +90,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v3.6.0
+        uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -101,20 +101,20 @@ jobs:
         id: vars
         run: |
           flavor=${{ inputs.flavor }}
-          echo ::set-output name=flavor_capitalized::${flavor~}
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           gradleProps="-PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
-          echo ::set-output name=gradle_properties::$gradleProps
+          echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
-      # Setup the build environment with Java 17 and the Zulu OpenJDK
-      - name: Setup Java
-        uses: actions/setup-java@v3.12.0
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
       - name: Cache SonarCloud packages on selfhosted MinIO
         if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
+        uses: tespkg/actions-cache@v1.7.1
         with:
           endpoint: ${{ inputs.self_hosted_cache_endpoint }}
           port: ${{ inputs.self_hosted_cache_port }}
@@ -132,7 +132,7 @@ jobs:
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.runTests) }}
-        uses: gradle/gradle-build-action@v2.8.0
+        uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
 
@@ -140,7 +140,7 @@ jobs:
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.runLint) }}
-        uses: gradle/gradle-build-action@v2.8.0
+        uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
@@ -148,7 +148,7 @@ jobs:
       - name: Run Sonarqube
         id: sonarqube
         if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: gradle/gradle-build-action@v2.8.0
+        uses: gradle/actions/setup-gradle@v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
@@ -174,7 +174,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v3.6.0
+        uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -185,20 +185,20 @@ jobs:
         id: vars
         run: |
           flavor=${{ inputs.flavor }}
-          echo ::set-output name=flavor_capitalized::${flavor~}
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           gradleProps="-PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
-          echo ::set-output name=gradle_properties::$gradleProps
+          echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
-      # Setup the build environment with Java 17 and the Zulu OpenJDK
-      - name: Setup Java
-        uses: actions/setup-java@v3.12.0
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: 'zulu'
           java-version: '17'
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        uses: gradle/gradle-build-action@v2.8.0
+        uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
       - name: Find APK and Mapping

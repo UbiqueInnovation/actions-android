@@ -44,7 +44,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v3.6.0
+        uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -55,18 +55,18 @@ jobs:
         id: vars
         run: |
           flavor=${{ inputs.flavor }}
-          echo ::set-output name=flavor_capitalized::${flavor~}
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
 
-      # Setup the build environment with Java 17 and the Zulu OpenJDK
-      - name: Setup Java
-        uses: actions/setup-java@v3.12.0
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
       # Setup the build environment with Gradle
       - name: Build and publish app
-        uses: gradle/gradle-build-action@v2.8.0
+        uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: |
             :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
