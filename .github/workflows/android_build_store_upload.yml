@@ -65,11 +65,11 @@ jobs:
           java-version: '17'
 
       # Setup the build environment with Gradle
-      - name: Build and publish app
+      - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: |
-            :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+            :${{ inputs.appModule }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -78,5 +78,25 @@ jobs:
         env:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: Save app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle
+          path: |
+            **/${{ inputs.appModule }}/build/outputs/**/*.aab
+
+      - name: Upload app artifact
+        uses: gradle/actions/setup-gradle@v3.1.0
+        with:
+          arguments: |
+            :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle --artifact-dir ${{ inputs.appModule }}/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
