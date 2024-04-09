@@ -68,7 +68,7 @@ jobs:
         if: ${{ inputs.versionNameSuffix }} != ''
         run: |
           if grep -q "VERSION_NAME=" ${{ inputs.gradlePropertiesPath }}; then
-            sed -r "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
+            sed -i ' ' "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
           else
             echo "Could not find VERSION_NAME gradle property in ${{ inputs.gradlePropertiesPath }}"
             exit 1
