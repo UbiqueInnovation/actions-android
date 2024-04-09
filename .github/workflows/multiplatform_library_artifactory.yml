@@ -1,0 +1,90 @@
+name: Build and publish library artifact
+
+on:
+  workflow_call:
+    inputs:
+      workingDirectory:
+        type: string
+        default: './'
+        required: false
+        description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
+      libModule:
+        type: string
+        required: false
+        default: 'lib'
+        description: 'The name of the gradle module of the library (similar to the app module)'
+      versionNameSuffix:
+        type: string
+        default: ''
+        required: false
+        description: 'A suffix to be appended to the version name. Empty by default for release builds'
+      gradlePropertiesPath:
+        type: string
+        default: './gradle.properties'
+        required: false
+        description: 'The path to the gradle.properties file that contains the POM_ARTIFACT_VERSION'
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
+      UB_ARTIFACTORY_URL_ANDROID:
+        required: true
+      UB_ARTIFACTORY_USERNAME:
+        required: true
+      UB_ARTIFACTORY_PASSWORD:
+        required: true
+
+
+jobs:
+  build:
+    name: Build library
+    runs-on: ["self-hosted", "macOS"]
+    defaults:
+      run:
+        working-directory: ${{ inputs.workingDirectory }}
+    timeout-minutes: 60
+    concurrency:
+      # Cancel any previous runs that have not yet finished for the configured concurrency group
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # Append version name suffix
+      - name: Append version name suffix
+        id: version
+        if: ${{ inputs.versionNameSuffix }} != ''
+        run: |
+          if grep -q "VERSION_NAME=" ${{ inputs.gradlePropertiesPath }}; then
+            sed -i "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
+          else
+            echo "Could not find VERSION_NAME gradle property in ${{ inputs.gradlePropertiesPath }}"
+            exit 1
+          fi
+
+      # Run the Gradle publish task
+      - name: Build and publish artifact
+        uses: gradle/actions/setup-gradle@v3.1.0
+        with:
+          build-root-directory: ${{ inputs.workingDirectory }}
+          arguments: |
+            :${{ inputs.libModule }}:publish
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+        env:
+          UB_ARTIFACTORY_URL_ANDROID: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+          UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USER }}
+          UB_ARTIFACTORY_PASSWORD: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
