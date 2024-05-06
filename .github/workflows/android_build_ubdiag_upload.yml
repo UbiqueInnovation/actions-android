@@ -68,7 +68,9 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ["self-hosted", "linux", "stable"]
+    runs-on: ["dind"]
+    container:
+      image: cimg/android:2024.04.1
     defaults:
       run:
         working-directory: ${{ inputs.workingDirectory }}
