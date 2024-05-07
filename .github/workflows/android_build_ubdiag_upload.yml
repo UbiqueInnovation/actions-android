@@ -140,8 +140,6 @@ jobs:
           key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
       # Setup the build environment with Gradle
       - name: Build app
         uses: gradle/gradle-build-action@v2.8.0
