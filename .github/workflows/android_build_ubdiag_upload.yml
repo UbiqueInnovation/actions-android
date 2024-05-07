@@ -124,9 +124,9 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
+            cimg-android-${{ inputs.projectKey }}-gradle-
 
       # Setup the build environment with Gradle
       - name: Build app
