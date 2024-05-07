@@ -68,9 +68,9 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ["new-runners"]
+    runs-on: ["dind"]
     container:
-      image: cimg/android
+      image: cimg/android:2024.04.1
     defaults:
       run:
         working-directory: ${{ inputs.workingDirectory }}
@@ -85,16 +85,17 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: 'true'
+          submodules: "recursive"
+          lfs: "true"
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
         id: vars
+        shell: bash
         run: |
           flavor=${{ inputs.flavor }}
           buildUuid=$(cat /proc/sys/kernel/random/uuid)
-          webIconPath=${{ github.workspace }}/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+          webIconPath=$GITHUB_WORKSPACE/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
           echo "build_uuid=$buildUuid" >> "$GITHUB_OUTPUT"
           echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
@@ -146,7 +147,7 @@ jobs:
 
       # Upload to UBDiag
       - name: Upload build to UBDiag
-        uses: UbiqueInnovation/ubdiag-upload-action@v1.1.1
+        uses: UbiqueInnovation/ubdiag-upload-action@new-runners
         with:
           buildNumber: ${{ github.run_number }}
           projectKey: ${{ inputs.projectKey }}
