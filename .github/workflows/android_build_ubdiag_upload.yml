@@ -123,6 +123,25 @@ jobs:
               restore-keys: |
                 ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
 
+      - name: Cache Maven packages on self-hosted MinIO
+        uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       # Setup the build environment with Gradle
       - name: Build app
         uses: gradle/gradle-build-action@v2.8.0
