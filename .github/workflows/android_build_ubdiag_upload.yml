@@ -110,7 +110,7 @@ jobs:
       - name: Install zstd
         run: sudo apt-get install -y zstd
 
-      - name: Cache Maven packages on self-hosted MinIO
+      - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
         with:
           endpoint: ${{ inputs.self_hosted_cache_endpoint }}
