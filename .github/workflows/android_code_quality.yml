@@ -169,7 +169,7 @@ jobs:
   coeus:
     #if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
-    runs-on: ["dind"]
+    runs-on: ["docker"]
     container:
       image: cimg/android:2024.04.1
     timeout-minutes: 60
@@ -191,9 +191,9 @@ jobs:
         id: vars
         shell: bash
         run: |
-          flavor=${{ inputs.flavor }}
+          export flavor=${{ inputs.flavor }}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
