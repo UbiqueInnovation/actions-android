@@ -103,10 +103,11 @@ jobs:
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
         id: vars
+        shell: bash
         run: |
-          flavor=${{ inputs.flavor }}
+          export flavor=${{ inputs.flavor }}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
@@ -206,6 +207,8 @@ jobs:
           distribution: "zulu"
           java-version: "17"
       # Run Coeus
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
         uses: gradle/actions/setup-gradle@v3.1.0
