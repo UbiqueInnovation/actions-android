@@ -139,6 +139,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
 
       # Run Android Lint checks
       - name: Run Lint
@@ -147,6 +148,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
@@ -158,6 +160,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
         with:
           arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
@@ -200,14 +203,15 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
       - name: Find APK and Mapping
         id: find-apk
         run: |
