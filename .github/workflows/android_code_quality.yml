@@ -83,7 +83,9 @@ on:
 jobs:
   code_quality:
     name: Run code quality checks
-    runs-on: [self-hosted, linux, stable]
+    runs-on: ["k8s-runner"]
+    container:
+      image: cimg/android:2024.04.1
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -95,8 +97,8 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: 'true'
+          submodules: "recursive"
+          lfs: "true"
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -165,9 +167,11 @@ jobs:
           check_name: "Unit Test Results"
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml
   coeus:
-    if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
+    #if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
-    runs-on: [self-hosted, linux, stable]
+    runs-on: ["dind"]
+    container:
+      image: cimg/android:2024.04.1
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
