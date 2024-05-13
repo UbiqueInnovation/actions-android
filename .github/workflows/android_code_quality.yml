@@ -189,6 +189,7 @@ jobs:
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
         id: vars
+        shell: bash
         run: |
           flavor=${{ inputs.flavor }}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
