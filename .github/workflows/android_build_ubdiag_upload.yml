@@ -68,7 +68,7 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ["dind"]
+    runs-on: ["k8s-runner"]
     container:
       image: cimg/android:2024.04.1
     defaults:
