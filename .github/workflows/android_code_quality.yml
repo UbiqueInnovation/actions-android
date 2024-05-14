@@ -218,8 +218,8 @@ jobs:
       - name: Find APK and Mapping
         id: find-apk
         run: |
-          apk=`find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-          mapping=`find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          apk=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
+          mapping=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
           echo "apk=$apk" >> $GITHUB_OUTPUT
           echo "mapping=$mapping" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
