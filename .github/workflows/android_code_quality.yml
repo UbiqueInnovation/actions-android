@@ -86,6 +86,7 @@ jobs:
     runs-on: ["k8s-runner"]
     container:
       image: cimg/android:2024.04.1
+      options: "--group-add=123"
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -175,7 +176,7 @@ jobs:
     name: Run coeus binary analysis
     runs-on: ["docker"]
     container:
-      image: cimg/android:2024.04.1
+      image: ghcr.io/actions/actions-runner:2.316.1
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -199,6 +200,8 @@ jobs:
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
+          sudo groupadd -g 123 dind
+          sudo usermod -aG dind circleci
 
       # Setup JDK environment
       - name: Set up JDK
@@ -207,8 +210,6 @@ jobs:
           distribution: "zulu"
           java-version: "17"
       # Run Coeus
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
         uses: gradle/actions/setup-gradle@v3.1.0
@@ -229,6 +230,9 @@ jobs:
           login-server: ${{ secrets.ACR_REGISTRY }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Run Coeus
         id: coeus
         # See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
