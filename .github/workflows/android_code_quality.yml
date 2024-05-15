@@ -216,11 +216,12 @@ jobs:
           cache-disabled: true
       - name: Find APK and Mapping
         id: find-apk
+        shell: bash
         run: |
-          apk=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-          mapping=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
-          echo "apk=$apk" >> $GITHUB_OUTPUT
-          echo "mapping=$mapping" >> $GITHUB_OUTPUT
+          export apk=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
+          export mapping=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          echo "apk=${apk//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
+          echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
         id: coeus-docker-login
         uses: azure/docker-login@v1
