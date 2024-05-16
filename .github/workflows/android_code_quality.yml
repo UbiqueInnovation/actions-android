@@ -9,7 +9,7 @@ on:
       appModule:
         type: string
         required: false
-        default: "app"
+        default: 'app'
       runCoeus:
         type: boolean
         required: false
@@ -17,7 +17,7 @@ on:
       skipRules:
         type: string
         required: false
-        default: ""
+        default: ''
       runTests:
         type: boolean
         required: false
@@ -32,7 +32,7 @@ on:
         default: false
       self_hosted_cache_endpoint:
         required: false
-        default: "truenas.local.lan"
+        default: 'truenas.local.lan'
         type: string
         description: Should be set for selfhosted builds, but build won't fail without it
       self_hosted_cache_port:
@@ -83,7 +83,7 @@ on:
 jobs:
   code_quality:
     name: Run code quality checks
-    runs-on: ["k8s-runner"]
+    runs-on: ['k8s-runner']
     container:
       image: cimg/android:2024.04.1
     timeout-minutes: 60
@@ -97,8 +97,8 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: "recursive"
-          lfs: "true"
+          submodules: 'recursive'
+          lfs: 'true'
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -114,8 +114,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1
         with:
-          distribution: "zulu"
-          java-version: "17"
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
@@ -186,15 +186,15 @@ jobs:
         if: ${{ fromJSON(inputs.runTests) && steps.tests.outcome == 'success' }}
         uses: EnricoMi/publish-unit-test-result-action@v1.36
         with:
-          check_name: "Unit Test Results"
+          check_name: 'Unit Test Results'
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml
   coeus:
     #if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
-    runs-on: ["docker"]
+    runs-on: ['docker']
     container:
       image: cimg/android:2024.04.1
-      options: "--group-add=123"
+      options: '--group-add=123'
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -206,8 +206,8 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: "recursive"
-          lfs: "true"
+          submodules: 'recursive'
+          lfs: 'true'
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -223,8 +223,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1
         with:
-          distribution: "zulu"
-          java-version: "17"
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
@@ -285,8 +285,8 @@ jobs:
         uses: peter-evans/find-comment@1769778a0c5bd330272d749d12c036d65e70d39d
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-author: "github-actions[bot]"
-          body-includes: "Coeus Binary Analysis Results"
+          comment-author: 'github-actions[bot]'
+          body-includes: 'Coeus Binary Analysis Results'
 
       - name: Comment Coeus Output
         id: coeus-comment
