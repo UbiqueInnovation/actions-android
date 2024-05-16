@@ -150,7 +150,7 @@ jobs:
 
       # Upload to UBDiag
       - name: Upload build to UBDiag
-        uses: UbiqueInnovation/ubdiag-upload-action@new-runners
+        uses: UbiqueInnovation/ubdiag-upload-action@v1.1.2
         with:
           buildNumber: ${{ github.run_number }}
           projectKey: ${{ inputs.projectKey }}
