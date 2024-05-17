@@ -31,23 +31,23 @@ on:
         required: false
         default: false
       self_hosted_cache_endpoint:
-          required: false
-          default: 'truenas.local.lan'
-          type: string
-          description: Should be set for selfhosted builds, but build won't fail without it
+        required: false
+        default: 'truenas.local.lan'
+        type: string
+        description: Should be set for selfhosted builds, but build won't fail without it
       self_hosted_cache_port:
-          required: false
-          default: 9000
-          type: number
+        required: false
+        default: 9000
+        type: number
       self_hosted_cache_bucket:
-          required: false
-          default: github-actions-cache
-          type: string
+        required: false
+        default: github-actions-cache
+        type: string
       self_hosted_cache_region:
-          required: false
-          default: local
-          type: string
-  
+        required: false
+        default: local
+        type: string
+
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -83,7 +83,9 @@ on:
 jobs:
   code_quality:
     name: Run code quality checks
-    runs-on: [self-hosted, linux, stable]
+    runs-on: ['k8s-runner']
+    container:
+      image: cimg/android:2024.04.1
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -101,10 +103,11 @@ jobs:
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
         id: vars
+        shell: bash
         run: |
-          flavor=${{ inputs.flavor }}
+          export flavor=${{ inputs.flavor }}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
@@ -113,6 +116,24 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+
+      - name: Cache Gradle packages on self-hosted MinIO
+        uses: tespkg/actions-cache@v1.7.1
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            cimg-android-${{ inputs.projectKey }}-gradle-
 
       - name: Cache SonarCloud packages on selfhosted MinIO
         if: ${{ fromJSON(inputs.runSonarqube) }}
@@ -137,6 +158,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
 
       # Run Android Lint checks
       - name: Run Lint
@@ -145,6 +167,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
@@ -156,18 +179,22 @@ jobs:
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
         with:
           arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
         if: ${{ fromJSON(inputs.runTests) && steps.tests.outcome == 'success' }}
         uses: EnricoMi/publish-unit-test-result-action@v1.36
         with:
-          check_name: "Unit Test Results"
+          check_name: 'Unit Test Results'
           files: ${{ inputs.appModule }}/build/test-results/**/*.xml
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
-    runs-on: [self-hosted, linux, stable]
+    runs-on: ['docker']
+    container:
+      image: cimg/android:2024.04.1
+      options: '--group-add=123'
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -185,10 +212,11 @@ jobs:
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
         id: vars
+        shell: bash
         run: |
-          flavor=${{ inputs.flavor }}
+          export flavor=${{ inputs.flavor }}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
@@ -197,20 +225,40 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+
+      - name: Cache Gradle packages on self-hosted MinIO
+        uses: tespkg/actions-cache@v1.7.1
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            cimg-android-${{ inputs.projectKey }}-gradle-
+
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
+          cache-disabled: true
       - name: Find APK and Mapping
         id: find-apk
-        run:
-          |
-            apk=`find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-            mapping=`find ${{ github.workspace }}/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
-            echo "apk=$apk" >> $GITHUB_OUTPUT
-            echo "mapping=$mapping" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          export apk=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
+          export mapping=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          echo "apk=${apk//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
+          echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
         id: coeus-docker-login
         uses: azure/docker-login@v1
@@ -218,6 +266,7 @@ jobs:
           login-server: ${{ secrets.ACR_REGISTRY }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
+
       - name: Run Coeus
         id: coeus
         # See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
@@ -236,8 +285,8 @@ jobs:
         uses: peter-evans/find-comment@1769778a0c5bd330272d749d12c036d65e70d39d
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-author: "github-actions[bot]"
-          body-includes: "Coeus Binary Analysis Results"
+          comment-author: 'github-actions[bot]'
+          body-includes: 'Coeus Binary Analysis Results'
 
       - name: Comment Coeus Output
         id: coeus-comment

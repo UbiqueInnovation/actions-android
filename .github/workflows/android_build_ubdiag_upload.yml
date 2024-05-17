@@ -26,22 +26,22 @@ on:
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
       self_hosted_cache_endpoint:
-          required: false
-          default: 'truenas.local.lan'
-          type: string
-          description: Should be set for selfhosted builds, but build won't fail without it
+        required: false
+        default: 'truenas.local.lan'
+        type: string
+        description: Should be set for selfhosted builds, but build won't fail without it
       self_hosted_cache_port:
-          required: false
-          default: 9000
-          type: number
+        required: false
+        default: 9000
+        type: number
       self_hosted_cache_bucket:
-          required: false
-          default: github-actions-cache
-          type: string
+        required: false
+        default: github-actions-cache
+        type: string
       self_hosted_cache_region:
-          required: false
-          default: local
-          type: string
+        required: false
+        default: local
+        type: string
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -68,7 +68,9 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ["self-hosted", "linux", "stable"]
+    runs-on: ['k8s-runner']
+    container:
+      image: cimg/android:2024.04.1
     defaults:
       run:
         working-directory: ${{ inputs.workingDirectory }}
@@ -89,10 +91,11 @@ jobs:
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
         id: vars
+        shell: bash
         run: |
           flavor=${{ inputs.flavor }}
           buildUuid=$(cat /proc/sys/kernel/random/uuid)
-          webIconPath=${{ github.workspace }}/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+          webIconPath=$GITHUB_WORKSPACE/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
           echo "build_uuid=$buildUuid" >> "$GITHUB_OUTPUT"
           echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
@@ -104,23 +107,26 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      -   name: Cache Maven packages on self-hosted MinIO
-          uses: tespkg/actions-cache@v1.7.1
-          with:
-              endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-              port: ${{ inputs.self_hosted_cache_port }}
-              insecure: true
-              accessKey: ${{ secrets.self_hosted_cache_access_key }}
-              secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-              bucket: ${{ inputs.self_hosted_cache_bucket }}
-              region: ${{ inputs.self_hosted_cache_region }}
-              use-fallback: true
-              path: |
-                ~/.gradle/caches
-                ~/.gradle/wrapper
-              key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-              restore-keys: |
-                ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
+      - name: Install zstd
+        run: sudo apt-get install -y zstd
+
+      - name: Cache Gradle packages on self-hosted MinIO
+        uses: tespkg/actions-cache@v1.7.1
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            cimg-android-${{ inputs.projectKey }}-gradle-
 
       # Setup the build environment with Gradle
       - name: Build app
@@ -141,11 +147,10 @@ jobs:
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-            
 
       # Upload to UBDiag
       - name: Upload build to UBDiag
-        uses: UbiqueInnovation/ubdiag-upload-action@v1.1.1
+        uses: UbiqueInnovation/ubdiag-upload-action@v1.1.2
         with:
           buildNumber: ${{ github.run_number }}
           projectKey: ${{ inputs.projectKey }}
