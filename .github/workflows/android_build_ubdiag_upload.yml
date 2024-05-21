@@ -160,5 +160,3 @@ jobs:
           buildUuid: ${{ steps.vars.outputs.build_uuid }}
           webIconFile: tmp_icon_large_for_backend.png
           backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
-          self_hosted_cache_access_key: ${{ secrets.self_hosted_cache_access_key }}
-          self_hosted_cache_secret_key: ${{ secrets.self_hosted_cache_secret_key }}
