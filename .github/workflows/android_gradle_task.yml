@@ -64,7 +64,23 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4.1.1
-
+      - name: Cache Gradle packages on self-hosted MinIO
+        uses: tespkg/actions-cache@v1.7.1
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            cimg-android-${{ inputs.projectKey }}-gradle-
       - name: Run Gradle task
         env:
           UB_ARTIFACTORY_URL_ANDROID: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
