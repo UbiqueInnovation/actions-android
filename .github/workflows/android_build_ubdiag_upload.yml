@@ -144,6 +144,7 @@ jobs:
             -Pbuildnumber=${{ github.run_number }}
             -Pubappid=${{ steps.vars.outputs.build_uuid }}
             -Pwebicon=${{ steps.vars.outputs.web_icon }}
+            --build-cache
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
