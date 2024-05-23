@@ -9,7 +9,6 @@ on:
       gradleArgs:
         type: string
         required: false
-        default: '--info'
       concurrencyGroup:
         type: string
         required: false
