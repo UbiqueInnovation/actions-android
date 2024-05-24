@@ -111,11 +111,8 @@ jobs:
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+      - name: Install zstd
+        run: sudo apt-get install -y zstd
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
@@ -219,12 +216,8 @@ jobs:
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+      - name: Install zstd
+        run: sudo apt-get install -y zstd
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1

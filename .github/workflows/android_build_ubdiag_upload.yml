@@ -100,13 +100,6 @@ jobs:
           echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
 
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
       - name: Install zstd
         run: sudo apt-get install -y zstd
 
@@ -124,7 +117,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: cimg-android-${{ inputs.projectKey }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
 
@@ -144,6 +137,7 @@ jobs:
             -Pbuildnumber=${{ github.run_number }}
             -Pubappid=${{ steps.vars.outputs.build_uuid }}
             -Pwebicon=${{ steps.vars.outputs.web_icon }}
+            --build-cache
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
