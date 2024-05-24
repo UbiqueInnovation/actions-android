@@ -1,0 +1,156 @@
+name: Build and Upload to UBDiag
+
+inputs:
+  projectKey:
+    required: true
+  app:
+    required: true
+  flavor:
+    required: true
+  appModule:
+    required: false
+    default: 'app'
+  main_branch:
+    required: false
+    default: 'main'
+  self_hosted_cache_endpoint:
+    required: false
+    default: 'truenas.local.lan'
+    description: Should be set for selfhosted builds, but build won't fail without it
+  self_hosted_cache_port:
+    required: false
+    default: '9000'
+  self_hosted_cache_bucket:
+    required: false
+    default: github-actions-cache
+  self_hosted_cache_region:
+    required: false
+    default: local
+  do_store_upload:
+    required: false
+    default: no
+  ANDROID_JENKINS_PAT:
+    required: true
+  UB_ARTIFACTORY_URL_ANDROID:
+    required: true
+  UB_ARTIFACTORY_USERNAME:
+    required: true
+  UB_ARTIFACTORY_PASSWORD:
+    required: true
+  UBIQUE_POEDITOR_API_KEY:
+    required: true
+  ADDITIONAL_GRADLE_PROPS:
+    required: false
+  SENTRY_AUTH_TOKEN:
+    required: false
+  UPLOAD_KEY_STORE_PASSWORD:
+    required: true
+  UPLOAD_KEY_PASSWORD:
+    required: true
+  ANDROID_PUBLISHER_CREDENTIALS:
+    required: true
+  UBDIAG_UPLOAD_URL:
+    required: true
+  self_hosted_cache_access_key:
+    required: false
+    description: Must be set to use selfhosted cache
+  self_hosted_cache_secret_key:
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    # Checkout repository and submodules
+    - name: Checkout
+      uses: actions/checkout@v3.6.0
+      with:
+        token: ${{ inputs.ANDROID_JENKINS_PAT }}
+        submodules: 'recursive'
+        lfs: 'true'
+
+    # Set build variables for reuse in multiple steps
+    - name: Set Build Variables
+      id: vars
+      shell: bash
+      run: |
+        flavor=${{ inputs.flavor }}
+        echo ::set-output name=build_uuid::$(cat /proc/sys/kernel/random/uuid)
+        echo ::set-output name=web_icon::${{ github.workspace }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+        echo ::set-output name=flavor_capitalized::${flavor~}
+
+    # Setup the build environment with Java 17 and the Zulu OpenJDK
+    - name: Setup Java
+      uses: actions/setup-java@v3.12.0
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: extract branch name
+      shell: bash
+      id: extract_branch
+      run: echo ::set-output name=branch::${GITHUB_REF#refs/heads/}
+
+    - name: Cache Maven packages on self-hosted MinIO
+      if: ${{ steps.extract_branch.name != inputs.main_branch }}
+      uses: tespkg/actions-cache@adf4e5e57e916ad83e63cc047ce271ef0843a24c
+      with:
+        endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+        port: ${{ inputs.self_hosted_cache_port }}
+        insecure: true
+        accessKey: ${{ inputs.self_hosted_cache_access_key }}
+        secretKey: ${{ inputs.self_hosted_cache_secret_key }}
+        bucket: ${{ inputs.self_hosted_cache_bucket }}
+        region: ${{ inputs.self_hosted_cache_region }}
+        use-fallback: true
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.projectKey }}-gradle-
+
+    # Setup the build environment with Gradle
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3.1.0
+      with:
+        cache-disabled: true
+
+    # Assemble app
+    - name: Assemble app
+      shell: bash
+      run: ./gradlew :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
+        -PubiqueMavenUrl=${{ inputs.UB_ARTIFACTORY_URL_ANDROID }}
+        -PubiqueMavenUser=${{ inputs.UB_ARTIFACTORY_USERNAME }}
+        -PubiqueMavenPass=${{ inputs.UB_ARTIFACTORY_PASSWORD }}
+        -PubiquePoEditorAPIKey=${{ inputs.UBIQUE_POEDITOR_API_KEY }}
+        -Pbranch=${{ github.ref_name }}
+        -Pbuildnumber=${{ github.run_number }}
+        -Pubappid=${{ steps.vars.outputs.build_uuid }}
+        -Pwebicon=${{ steps.vars.outputs.web_icon }}
+        ${{ inputs.ADDITIONAL_GRADLE_PROPS }}
+
+    # Upload to UBDiag
+    - name: Upload build to UBDiag
+      uses: UbiqueInnovation/ubdiag-upload-action@v1.1.1
+      with:
+        buildNumber: ${{ github.run_number }}
+        projectKey: ${{ inputs.projectKey }}
+        flavor: ${{ inputs.flavor }}
+        app: ${{ inputs.app }}
+        appModuleDirectory: './${{ inputs.appModule }}'
+        buildUuid: ${{ steps.vars.outputs.build_uuid }}
+        webIconFile: tmp_icon_large_for_backend.png
+        backendEndpoint: ${{ inputs.UBDIAG_UPLOAD_URL }}
+        self_hosted_cache_access_key: ${{ inputs.self_hosted_cache_access_key }}
+        self_hosted_cache_secret_key: ${{ inputs.self_hosted_cache_secret_key }}
+
+    # Setup the build environment with Gradle
+    - name: Publish the app
+      if: ${{ steps.extract_branch.name == inputs.main_branch }}
+      shell: bash
+      run: ./gradlew :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+      env:
+        UPLOAD_KEY_STORE_PASSWORD: ${{ inputs.UPLOAD_KEY_STORE_PASSWORD }}
+        UPLOAD_KEY_PASSWORD: ${{ inputs.UPLOAD_KEY_PASSWORD }}
+        ANDROID_PUBLISHER_CREDENTIALS: ${{ inputs.ANDROID_PUBLISHER_CREDENTIALS }}
+        SENTRY_AUTH_TOKEN: ${{ inputs.SENTRY_AUTH_TOKEN }}
