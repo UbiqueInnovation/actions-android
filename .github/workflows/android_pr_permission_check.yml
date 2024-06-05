@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 60
     concurrency:
     # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.appModule }}
+      group: ${{ github.workflow }}-${{ inputs.baseBranch }}-${{ inputs.appModule }}
       cancel-in-progress: true
     steps:
       # Checkout repository and submodules
