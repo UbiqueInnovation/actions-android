@@ -1,0 +1,69 @@
+name: Extract Develop Permissions
+run-name: Checking for newly added permissions. Triggered by PR from ${{ github.actor }}
+on:
+  workflow_call:
+    inputs:
+      flavor:
+        type: string
+        required: true
+      appModule:
+        type: string
+        required: false
+        default: 'app'
+
+jobs:
+  build:
+    name: Build Develop - Flavor ${{ inputs.flavor }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+    # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.appModule }}
+      cancel-in-progress: true
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+    
+      # Set build variables for reuse in multiple steps
+      - name: Set Build Variables
+        id: vars
+        run: |
+          flavor=${{ inputs.flavor }}
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+    
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+    
+      # Setup the build environment with Gradle
+      - name: Build app
+        uses: gradle/actions/setup-gradle@v3.1.0
+        with:
+          arguments: |
+            :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      # Extract permissions from the APK
+      - name: Get permissions
+        run: $ANDROID_HOME/build-tools/33.0.1/aapt d permissions app/build/outputs/apk/debug/app-debug.apk > permissions-develop.txt
+
+      # Save permissions file
+      - name: Upload permissions file develop
+        uses: actions/upload-artifact@v1
+        with:
+         name: permissions
+         path: permissions-develop.txt
