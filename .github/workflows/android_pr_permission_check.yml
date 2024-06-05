@@ -10,7 +10,9 @@ on:
         type: string
         required: false
         default: 'app'
-
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
 jobs:
   build:
     name: Build Develop - Flavor ${{ inputs.flavor }}
@@ -25,7 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.1.1
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
           lfs: 'true'
     
@@ -49,13 +50,6 @@ jobs:
         with:
           arguments: |
             :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
-            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
-            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       # Extract permissions from the APK
       - name: Get permissions
