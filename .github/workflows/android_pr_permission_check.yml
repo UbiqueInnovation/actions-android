@@ -10,6 +10,9 @@ on:
         type: string
         required: false
         default: 'app'
+      baseBranch:
+        type: string
+        required: true
 jobs:
   build:
     name: Build Develop - Flavor ${{ inputs.flavor }}
@@ -26,6 +29,7 @@ jobs:
         with:
           submodules: 'recursive'
           lfs: 'true'
+          ref: ${{ inputs.baseBranch }}
     
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
