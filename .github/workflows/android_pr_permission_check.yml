@@ -10,9 +10,6 @@ on:
         type: string
         required: false
         default: 'app'
-    secrets:
-      ANDROID_JENKINS_PAT:
-        required: true
 jobs:
   build:
     name: Build Develop - Flavor ${{ inputs.flavor }}
