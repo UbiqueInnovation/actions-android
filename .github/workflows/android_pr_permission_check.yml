@@ -46,7 +46,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: |
-            :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
+            :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}
 
       # Extract permissions from the APK
       - name: Get permissions
