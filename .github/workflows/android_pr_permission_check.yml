@@ -14,8 +14,8 @@ on:
         type: string
         required: true
 jobs:
-  build:
-    name: Build Develop - Flavor ${{ inputs.flavor }}
+  build-base:
+    name: Build Base - Flavor ${{ inputs.flavor }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
@@ -62,3 +62,75 @@ jobs:
         with:
          name: permissions
          path: permissions-develop.txt
+
+  build-feature:
+    name: Build Feature - Flavor ${{ inputs.flavor }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+    # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.appModule }}
+      cancel-in-progress: true
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          submodules: 'recursive'
+          lfs: 'true'
+    
+      # Set build variables for reuse in multiple steps
+      - name: Set Build Variables
+        id: vars
+        run: |
+          flavor=${{ inputs.flavor }}
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+    
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+    
+      # Setup the build environment with Gradle
+      - name: Build app
+        uses: gradle/actions/setup-gradle@v3.1.0
+        with:
+          arguments: |
+            :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}
+
+      # Extract permissions from the APK
+      - name: Get permissions
+        run: $ANDROID_HOME/build-tools/33.0.1/aapt d permissions app/build/outputs/apk/debug/app-debug.apk > permissions-feature.txt
+
+      # Save permissions file
+      - name: Upload permissions file feature
+        uses: actions/upload-artifact@v1
+        with:
+          name: permissions
+          path: permissions-feature.txt
+
+  diff-permissions:
+    needs: [build-base, build-feature]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download permissions
+        uses: actions/download-artifact@v1
+        with:
+          name: permissions
+
+      - name: Execute diff
+        run: diff --changed-group-format='%<%>' --unchanged-group-format='' $GITHUB_WORKSPACE/permissions/permissions-develop.txt $GITHUB_WORKSPACE/permissions/permissions-branch.txt > permissions-diff.txt && echo "NEW_PERMISSIONS=false" >> "$GITHUB_ENV" || echo "NEW_PERMISSIONS=true" >> "$GITHUB_ENV"
+
+      - run: cat permissions-diff.txt
+      - run: printf "⚠ New permissions would be added to the project with this PR:\n\n\`\`\`\n" > pr-comment.txt && cat permissions-diff.txt >> pr-comment.txt && printf "\n\`\`\`" >> pr-comment.txt
+
+      - name: add comment to PR
+        if: env.NEW_PERMISSIONS == 'true'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-path: pr-comment.txt
+        
