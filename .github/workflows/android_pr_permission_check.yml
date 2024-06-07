@@ -54,14 +54,14 @@ jobs:
 
       # Extract permissions from the APK
       - name: Get permissions
-        run: $ANDROID_HOME/build-tools/33.0.1/aapt d permissions app/build/outputs/apk/debug/app-debug.apk > permissions-develop.txt
+        run: $ANDROID_HOME/build-tools/33.0.1/aapt d permissions app/build/outputs/apk/debug/app-debug.apk > permissions-base.txt
 
       # Save permissions file
-      - name: Upload permissions file develop
+      - name: Upload permissions file base branch
         uses: actions/upload-artifact@v1
         with:
          name: permissions
-         path: permissions-develop.txt
+         path: permissions-base.txt
 
   build-feature:
     name: Build Feature - Flavor ${{ inputs.flavor }}
