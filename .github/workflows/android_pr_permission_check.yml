@@ -123,7 +123,7 @@ jobs:
           name: permissions
 
       - name: Execute diff
-        run: diff --changed-group-format='%<%>' --unchanged-group-format='' $GITHUB_WORKSPACE/permissions/permissions-develop.txt $GITHUB_WORKSPACE/permissions/permissions-branch.txt > permissions-diff.txt && echo "NEW_PERMISSIONS=false" >> "$GITHUB_ENV" || echo "NEW_PERMISSIONS=true" >> "$GITHUB_ENV"
+        run: diff --changed-group-format='%<%>' --unchanged-group-format='' $GITHUB_WORKSPACE/permissions/permissions-base.txt $GITHUB_WORKSPACE/permissions/permissions-feature.txt > permissions-diff.txt && echo "NEW_PERMISSIONS=false" >> "$GITHUB_ENV" || echo "NEW_PERMISSIONS=true" >> "$GITHUB_ENV"
 
       - run: cat permissions-diff.txt
       - run: printf "⚠ New permissions would be added to the project with this PR:\n\n\`\`\`\n" > pr-comment.txt && cat permissions-diff.txt >> pr-comment.txt && printf "\n\`\`\`" >> pr-comment.txt
