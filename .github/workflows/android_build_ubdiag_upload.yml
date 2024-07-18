@@ -74,7 +74,7 @@ jobs:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ['k8s-runner']
     container:
-      image: cimg/android:2024.04.1
+      image: cimg/android:2024.04.1-ndk
     defaults:
       run:
         working-directory: ${{ inputs.workingDirectory }}
