@@ -42,6 +42,10 @@ on:
         required: false
         default: local
         type: string
+      setup_rust_tool_chain:
+        required: false
+        default: false
+        type: boolean
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -70,7 +74,7 @@ jobs:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ['k8s-runner']
     container:
-      image: cimg/android:2024.04.1
+      image: cimg/android:2024.04.1-ndk
     defaults:
       run:
         working-directory: ${{ inputs.workingDirectory }}
@@ -120,6 +124,11 @@ jobs:
           key: cimg-android-${{ inputs.projectKey }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
+
+      # Setup rust Tool Chain
+      - name: Setup rust Tool Chain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        if: ${{ inputs.setup_rust_tool_chain }}
 
       # Setup the build environment with Gradle
       - name: Build app
