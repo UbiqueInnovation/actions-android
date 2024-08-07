@@ -103,6 +103,12 @@ jobs:
           echo "build_uuid=$buildUuid" >> "$GITHUB_OUTPUT"
           echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Install zstd
         run: sudo apt-get install -y zstd
