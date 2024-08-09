@@ -37,7 +37,7 @@ on:
         description: Should be set for selfhosted builds, but build won't fail without it
       self_hosted_cache_port:
         required: false
-        default: 9000
+        default: 9001
         type: number
       self_hosted_cache_bucket:
         required: false
