@@ -10,6 +10,10 @@ on:
         type: string
         required: false
         default: 'app'
+      setup_rust_tool_chain:
+        required: false
+        default: false
+        type: boolean
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -63,6 +67,11 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+
+      # Setup rust Tool Chain
+      - name: Setup rust Tool Chain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        if: ${{ inputs.setup_rust_tool_chain }}
 
       # Setup the build environment with Gradle
       - name: Build app
