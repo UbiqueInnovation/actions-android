@@ -85,7 +85,7 @@ jobs:
     name: Run code quality checks
     runs-on: ['k8s-runner']
     container:
-      image: cimg/android:2024.04.1
+      image: cimg/android:2024.04.1-ndk
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -190,7 +190,7 @@ jobs:
     name: Run coeus binary analysis
     runs-on: ['docker']
     container:
-      image: cimg/android:2024.04.1
+      image: cimg/android:2024.04.1-ndk
       options: '--group-add=123'
     timeout-minutes: 60
     concurrency:
