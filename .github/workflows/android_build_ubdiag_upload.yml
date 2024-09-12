@@ -92,6 +92,7 @@ jobs:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
           lfs: 'true'
+          fetch-depth: 10
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
