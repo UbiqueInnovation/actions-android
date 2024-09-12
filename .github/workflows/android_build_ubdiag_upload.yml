@@ -6,9 +6,6 @@ on:
       projectKey:
         type: string
         required: true
-      app:
-        type: string
-        required: true
       flavor:
         type: string
         required: true
