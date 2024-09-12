@@ -101,11 +101,14 @@ jobs:
           flavor=${{ inputs.flavor }}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           
-          buildBatch=$(cat /proc/sys/kernel/random/uuid)
+          buildBatch=${{ github.run_id }}
           echo "build_batch=$buildBatch" >> "$GITHUB_OUTPUT"
           
           buildId=$(cat /proc/sys/kernel/random/uuid)
           echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
+          
+          buildNumber=${{ github.run_number }}
+          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
       # Setup JDK environment
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1
@@ -155,9 +158,17 @@ jobs:
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
             -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
             -Pbuild_id=${{ steps.vars.outputs.build_id }}
-            -Pbuild_number=${{ github.run_number }}
+            -Pbuild_number=${{ steps.vars.outputs.build_number }}
             -Pbranch=${{ github.ref_name }}
             --build-cache
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      # Write UBDiag build info to GitHub job summary
+      - name: UBDiag Build Summary
+        run: |
+          echo '### UBDiag Build Info' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
