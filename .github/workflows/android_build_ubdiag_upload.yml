@@ -48,6 +48,10 @@ on:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
         required: true
+      UB_ARTIFACTORY_URL:
+        required: true
+      UB_ARTIFACTORY_REPO_ANDROID:
+        required: true
       UB_ARTIFACTORY_USERNAME:
         required: true
       UB_ARTIFACTORY_PASSWORD:
@@ -143,6 +147,7 @@ jobs:
           build-root-directory: ${{ inputs.workingDirectory }}
           arguments: |
             :${{ inputs.appModule }}:uploadToLinth{{ steps.vars.outputs.flavor_capitalized }}Release
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenRootUrl=${{ secrets.UB_ARTIFACTORY_URL }}
             -PubiqueMavenRepoName=${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
