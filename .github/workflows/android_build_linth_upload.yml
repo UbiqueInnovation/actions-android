@@ -6,9 +6,6 @@ on:
       projectKey:
         type: string
         required: true
-      app:
-        type: string
-        required: true
       flavor:
         type: string
         required: true
@@ -51,6 +48,10 @@ on:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
         required: true
+      UB_ARTIFACTORY_URL:
+        required: true
+      UB_ARTIFACTORY_REPO_ANDROID:
+        required: true
       UB_ARTIFACTORY_USERNAME:
         required: true
       UB_ARTIFACTORY_PASSWORD:
@@ -91,6 +92,7 @@ jobs:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
           lfs: 'true'
+          fetch-depth: 10
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -98,11 +100,16 @@ jobs:
         shell: bash
         run: |
           flavor=${{ inputs.flavor }}
-          buildUuid=$(cat /proc/sys/kernel/random/uuid)
-          webIconPath=$GITHUB_WORKSPACE/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
-          echo "build_uuid=$buildUuid" >> "$GITHUB_OUTPUT"
-          echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          
+          buildBatch=${{ github.run_id }}
+          echo "build_batch=$buildBatch" >> "$GITHUB_OUTPUT"
+          
+          buildId=$(cat /proc/sys/kernel/random/uuid)
+          echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
+          
+          buildNumber=${{ github.run_number }}
+          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
       # Setup JDK environment
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1
@@ -136,36 +143,33 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
-      # Setup the build environment with Gradle
+      # Build and upload app to UBDiag
       - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           cache-disabled: true
           build-root-directory: ${{ inputs.workingDirectory }}
           arguments: |
-            :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
+            :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenRootUrl=${{ secrets.UB_ARTIFACTORY_URL }}
+            -PubiqueMavenRepoName=${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
+            -Pbuild_id=${{ steps.vars.outputs.build_id }}
+            -Pbuild_number=${{ steps.vars.outputs.build_number }}
             -Pbranch=${{ github.ref_name }}
-            -Pbuildnumber=${{ github.run_number }}
-            -Pubappid=${{ steps.vars.outputs.build_uuid }}
-            -Pwebicon=${{ steps.vars.outputs.web_icon }}
             --build-cache
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-      # Upload to UBDiag
-      - name: Upload build to UBDiag
-        uses: UbiqueInnovation/ubdiag-upload-action@v1.1.2
-        with:
-          buildNumber: ${{ github.run_number }}
-          projectKey: ${{ inputs.projectKey }}
-          flavor: ${{ inputs.flavor }}
-          app: ${{ inputs.app }}
-          appModuleDirectory: '${{ inputs.workingDirectory }}${{ inputs.appModule }}'
-          buildUuid: ${{ steps.vars.outputs.build_uuid }}
-          webIconFile: tmp_icon_large_for_backend.png
-          backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
+      # Write UBDiag build info to GitHub job summary
+      - name: UBDiag Build Summary
+        run: |
+          echo '### UBDiag Build Info' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
