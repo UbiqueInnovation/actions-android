@@ -1,0 +1,173 @@
+name: Build and Upload to Linth
+
+on:
+  workflow_call:
+    inputs:
+      projectKey:
+        type: string
+        required: true
+      flavor:
+        type: string
+        required: true
+      appModule:
+        type: string
+        required: false
+        default: 'app'
+      concurrencyGroup:
+        type: string
+        required: false
+        default: ${{ github.workflow }}-${{ github.ref }}
+      workingDirectory:
+        type: string
+        default: './'
+        required: false
+        description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
+      self_hosted_cache_endpoint:
+        required: false
+        default: 'truenas.local.lan'
+        type: string
+        description: Should be set for selfhosted builds, but build won't fail without it
+      self_hosted_cache_port:
+        required: false
+        default: 9001
+        type: number
+      self_hosted_cache_bucket:
+        required: false
+        default: github-actions-cache
+        type: string
+      self_hosted_cache_region:
+        required: false
+        default: local
+        type: string
+      setup_rust_tool_chain:
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
+      UB_ARTIFACTORY_URL_ANDROID:
+        required: true
+      UB_ARTIFACTORY_URL:
+        required: true
+      UB_ARTIFACTORY_REPO_ANDROID:
+        required: true
+      UB_ARTIFACTORY_USERNAME:
+        required: true
+      UB_ARTIFACTORY_PASSWORD:
+        required: true
+      UBIQUE_POEDITOR_API_KEY:
+        required: false
+      ADDITIONAL_GRADLE_PROPS:
+        required: false
+      SENTRY_AUTH_TOKEN:
+        required: false
+      self_hosted_cache_access_key:
+        required: false
+        description: Must be set to use selfhosted cache
+      self_hosted_cache_secret_key:
+        required: false
+
+jobs:
+  build:
+    name: Build ${{ inputs.flavor }} Flavor
+    runs-on: ['k8s-runner']
+    container:
+      image: cimg/android:2024.04.1-ndk
+    defaults:
+      run:
+        working-directory: ${{ inputs.workingDirectory }}
+    timeout-minutes: 60
+    concurrency:
+      # Cancel any previous runs that have not yet finished for the configured concurrency group
+      group: ${{ inputs.concurrencyGroup }}
+      cancel-in-progress: true
+    steps:
+      # Checkout repository and submodules
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+          fetch-depth: 10
+
+      # Set build variables for reuse in multiple steps
+      - name: Set Build Variables
+        id: vars
+        shell: bash
+        run: |
+          flavor=${{ inputs.flavor }}
+          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          
+          buildBatch=${{ github.run_id }}
+          echo "build_batch=$buildBatch" >> "$GITHUB_OUTPUT"
+          
+          buildId=$(cat /proc/sys/kernel/random/uuid)
+          echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
+          
+          buildNumber=${{ github.run_number }}
+          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
+      # Setup JDK environment
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install zstd
+        run: sudo apt-get install -y zstd
+
+      - name: Cache Gradle packages on self-hosted MinIO
+        uses: tespkg/actions-cache@v1.7.1
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: cimg-android-${{ inputs.projectKey }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            cimg-android-${{ inputs.projectKey }}-gradle-
+
+      # Setup rust Tool Chain
+      - name: Setup rust Tool Chain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        if: ${{ inputs.setup_rust_tool_chain }}
+
+      # Build and upload app to Linth
+      - name: Build app
+        uses: gradle/actions/setup-gradle@v3.1.0
+        with:
+          cache-disabled: true
+          build-root-directory: ${{ inputs.workingDirectory }}
+          arguments: |
+            :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenRootUrl=${{ secrets.UB_ARTIFACTORY_URL }}
+            -PubiqueMavenRepoName=${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
+            -Pbuild_id=${{ steps.vars.outputs.build_id }}
+            -Pbuild_number=${{ steps.vars.outputs.build_number }}
+            -Pbranch=${{ github.ref_name }}
+            --build-cache
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      # Write Linth build info to GitHub job summary
+      - name: Linth Build Summary
+        run: |
+          echo '### Linth Build Info' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
