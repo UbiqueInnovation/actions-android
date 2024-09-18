@@ -3,9 +3,6 @@ name: Build and Upload to Linth
 on:
   workflow_call:
     inputs:
-      projectKey:
-        type: string
-        required: true
       flavor:
         type: string
         required: true
@@ -22,6 +19,10 @@ on:
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
+      cacheKeyPrefix:
+        type: string
+        required: false
+        default: ${{ github.repository }}
       self_hosted_cache_endpoint:
         required: false
         default: 'truenas.local.lan'
@@ -132,9 +133,9 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.projectKey }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: cimg-android-${{ inputs.cacheKeyPrefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
-            cimg-android-${{ inputs.projectKey }}-gradle-
+            cimg-android-${{ inputs.cacheKeyPrefix }}-gradle-
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
