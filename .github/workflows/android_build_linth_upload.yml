@@ -1,4 +1,4 @@
-name: Build and Upload to UBDiag
+name: Build and Upload to Linth
 
 on:
   workflow_call:
@@ -58,8 +58,6 @@ on:
         required: true
       UBIQUE_POEDITOR_API_KEY:
         required: false
-      UBDIAG_UPLOAD_URL:
-        required: true
       ADDITIONAL_GRADLE_PROPS:
         required: false
       SENTRY_AUTH_TOKEN:
@@ -143,7 +141,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
-      # Build and upload app to UBDiag
+      # Build and upload app to Linth
       - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
@@ -166,10 +164,10 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-      # Write UBDiag build info to GitHub job summary
-      - name: UBDiag Build Summary
+      # Write Linth build info to GitHub job summary
+      - name: Linth Build Summary
         run: |
-          echo '### UBDiag Build Info' >> $GITHUB_STEP_SUMMARY
+          echo '### Linth Build Info' >> $GITHUB_STEP_SUMMARY
           echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
           echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
           echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
