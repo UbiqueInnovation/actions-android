@@ -57,6 +57,8 @@ on:
         required: true
       UB_ARTIFACTORY_PASSWORD:
         required: true
+      LINTH_UPLOAD_KEY:
+        required: true
       UBIQUE_POEDITOR_API_KEY:
         required: false
       ADDITIONAL_GRADLE_PROPS:
@@ -164,6 +166,7 @@ jobs:
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LINTH_UPLOAD_KEY: ${{ secrets.LINTH_UPLOAD_KEY }}
 
       # Write Linth build info to GitHub job summary
       - name: Linth Build Summary
