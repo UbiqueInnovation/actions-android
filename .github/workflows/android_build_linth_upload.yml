@@ -123,6 +123,7 @@ jobs:
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
+        if: false # Disabled for now to test if it's faster without it
         with:
           endpoint: ${{ inputs.self_hosted_cache_endpoint }}
           port: ${{ inputs.self_hosted_cache_port }}
@@ -151,7 +152,7 @@ jobs:
           cache-disabled: true
           build-root-directory: ${{ inputs.workingDirectory }}
           arguments: |
-            :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
+            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenRootUrl=${{ secrets.UB_ARTIFACTORY_URL }}
             -PubiqueMavenRepoName=${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
@@ -162,7 +163,6 @@ jobs:
             -Pbuild_id=${{ steps.vars.outputs.build_id }}
             -Pbuild_number=${{ steps.vars.outputs.build_number }}
             -Pbranch=${{ github.ref_name }}
-            --build-cache
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
