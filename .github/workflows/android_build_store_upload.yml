@@ -19,7 +19,7 @@ on:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
         required: true
-      UB_ARTIFACTORY_USERNAME:
+      UB_ARTIFACTORY_USER:
         required: true
       UB_ARTIFACTORY_PASSWORD:
         required: true
@@ -80,7 +80,7 @@ jobs:
           arguments: |
             :${{ inputs.appModule }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
@@ -102,7 +102,7 @@ jobs:
           arguments: |
             :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle --artifact-dir ${{ inputs.appModule }}/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}

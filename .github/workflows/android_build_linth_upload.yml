@@ -49,7 +49,7 @@ on:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
         required: true
-      UB_ARTIFACTORY_USERNAME:
+      UB_ARTIFACTORY_USER:
         required: true
       UB_ARTIFACTORY_PASSWORD:
         required: true
@@ -150,7 +150,7 @@ jobs:
           arguments: |
             :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
             -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
