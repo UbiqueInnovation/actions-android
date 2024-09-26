@@ -116,6 +116,7 @@ jobs:
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
+        if: false # Disabled for now to test if it's faster without it
         with:
           endpoint: ${{ inputs.self_hosted_cache_endpoint }}
           port: ${{ inputs.self_hosted_cache_port }}
@@ -133,7 +134,7 @@ jobs:
             cimg-android-${{ inputs.projectKey }}-gradle-
 
       - name: Cache SonarCloud packages on selfhosted MinIO
-        if: ${{ fromJSON(inputs.runSonarqube) }}
+        if: ${{ fromJSON(inputs.runSonarqube) && false }} # Disabled for now to test if it's faster without it
         uses: tespkg/actions-cache@v1.7.1
         with:
           endpoint: ${{ inputs.self_hosted_cache_endpoint }}
@@ -221,6 +222,7 @@ jobs:
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
+        if: false # Disabled for now to test if it's faster without it
         with:
           endpoint: ${{ inputs.self_hosted_cache_endpoint }}
           port: ${{ inputs.self_hosted_cache_port }}
