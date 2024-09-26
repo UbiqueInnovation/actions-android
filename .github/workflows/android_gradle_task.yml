@@ -36,7 +36,9 @@ on:
         default: local
         type: string
     secrets:
-      UB_ARTIFACTORY_URL_ANDROID:
+      UB_ARTIFACTORY_URL:
+        required: true
+      UB_ARTIFACTORY_REPO_ANDROID:
         required: true
       UB_ARTIFACTORY_USERNAME:
         required: true
@@ -50,7 +52,7 @@ on:
 
 jobs:
   task:
-    runs-on: ['k8s-runner']
+    runs-on: [ 'k8s-runner' ]
     container:
       image: cimg/android:2024.04.1-ndk
     defaults:
@@ -65,6 +67,7 @@ jobs:
       - uses: actions/checkout@v4.1.1
       - name: Install zstd
         run: sudo apt-get install -y zstd
+
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
         if: false # Disabled for now to test if it's faster without it
@@ -83,9 +86,16 @@ jobs:
           key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}-${{ inputs.task }}
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
+
       - name: Run Gradle task
+        uses: gradle/actions/setup-gradle@v3.1.0
         env:
-          UB_ARTIFACTORY_URL_ANDROID: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-          UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USER }}
+          UB_ARTIFACTORY_URL: ${{ secrets.UB_ARTIFACTORY_URL }}
+          UB_ARTIFACTORY_REPO_ANDROID: ${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
+          UB_ARTIFACTORY_URL_ANDROID: '${{ secrets.UB_ARTIFACTORY_URL }}${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}'
+          UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USERNAME }}
           UB_ARTIFACTORY_PASSWORD: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-        run: ./gradlew ${{ inputs.task }} ${{ inputs.gradleArgs }}
+        with:
+          cache-disabled: true
+          build-root-directory: './'
+          arguments: ${{ inputs.task }} ${{ inputs.gradleArgs }}
