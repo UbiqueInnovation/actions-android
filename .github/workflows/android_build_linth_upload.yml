@@ -49,16 +49,12 @@ on:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
         required: true
-      UB_ARTIFACTORY_URL:
-        required: true
-      UB_ARTIFACTORY_REPO_ANDROID:
-        required: true
       UB_ARTIFACTORY_USERNAME:
         required: true
       UB_ARTIFACTORY_PASSWORD:
         required: true
       LINTH_UPLOAD_KEY:
-        required: true
+        required: false
       UBIQUE_POEDITOR_API_KEY:
         required: false
       ADDITIONAL_GRADLE_PROPS:
@@ -154,8 +150,6 @@ jobs:
           arguments: |
             :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenRootUrl=${{ secrets.UB_ARTIFACTORY_URL }}
-            -PubiqueMavenRepoName=${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USERNAME }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
