@@ -53,7 +53,7 @@ on:
         required: true
       UB_ARTIFACTORY_PASSWORD:
         required: true
-      LINTH_UPLOAD_KEY:
+      ALPAKA_UPLOAD_KEY:
         required: false
       UBIQUE_POEDITOR_API_KEY:
         required: false
@@ -141,14 +141,14 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
-      # Build and upload app to Linth
+      # Build and upload app to Alpaka
       - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           cache-disabled: true
           build-root-directory: ${{ inputs.workingDirectory }}
           arguments: |
-            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToLinth${{ steps.vars.outputs.flavor_capitalized }}Release
+            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -160,12 +160,12 @@ jobs:
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          LINTH_UPLOAD_KEY: ${{ secrets.LINTH_UPLOAD_KEY }}
+          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
 
-      # Write Linth build info to GitHub job summary
-      - name: Linth Build Summary
+      # Write Alpaka build info to GitHub job summary
+      - name: Alpaka Build Summary
         run: |
-          echo '### Linth Build Info' >> $GITHUB_STEP_SUMMARY
+          echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
           echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
           echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
           echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
