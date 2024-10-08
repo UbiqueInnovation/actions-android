@@ -47,6 +47,10 @@ on:
         required: false
         default: local
         type: string
+      runs-on:
+        type: string
+        required: false
+        default: '["k8s-runner"]'
 
     secrets:
       ANDROID_JENKINS_PAT:
@@ -83,7 +87,7 @@ on:
 jobs:
   code_quality:
     name: Run code quality checks
-    runs-on: ['k8s-runner']
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:2024.04.1-ndk
     timeout-minutes: 60
