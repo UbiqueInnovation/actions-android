@@ -35,6 +35,10 @@ on:
         required: false
         default: local
         type: string
+      runs-on:
+        type: string
+        required: false
+        default: '["k8s-runner"]'
     secrets:
       UB_ARTIFACTORY_URL:
         required: true
@@ -52,7 +56,7 @@ on:
 
 jobs:
   task:
-    runs-on: [ 'k8s-runner' ]
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:2024.04.1-ndk
     defaults:
