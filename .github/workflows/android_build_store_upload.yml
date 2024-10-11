@@ -14,6 +14,10 @@ on:
         required: false
         default: false
         type: boolean
+      runs-on:
+        type: string
+        required: false
+        default: '["k8s-runner"]'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -39,7 +43,9 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.flavor }} Flavor
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    container:
+      image: cimg/android:2024.04.1-ndk
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
