@@ -18,6 +18,11 @@ on:
         type: string
         required: false
         default: '["k8s-runner"]'
+      jdk:
+        type: string
+        required: false
+        default: '17'
+        description: The JDK version to use. Default is 17.
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -73,7 +78,7 @@ jobs:
         uses: actions/setup-java@v4.2.1
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: ${{ inputs.jdk }}
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
