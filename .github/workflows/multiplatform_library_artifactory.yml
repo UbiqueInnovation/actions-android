@@ -23,6 +23,11 @@ on:
         default: './gradle.properties'
         required: false
         description: 'The path to the gradle.properties file that contains the POM_ARTIFACT_VERSION'
+      jdk:
+        type: string
+        required: false
+        default: '17'
+        description: The JDK version to use. Default is 17.
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -60,7 +65,7 @@ jobs:
         uses: actions/setup-java@v4.2.1
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: ${{ inputs.jdk }}
 
       # Append version name suffix
       - name: Append version name suffix
