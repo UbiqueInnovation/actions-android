@@ -56,6 +56,10 @@ on:
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
+      setup_rust_tool_chain:
+        required: false
+        default: false
+        type: boolean
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -156,6 +160,11 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
+
+      # Setup rust Tool Chain
+      - name: Setup rust Tool Chain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        if: ${{ inputs.setup_rust_tool_chain }}
 
       # Run Unit Tests
       - name: Run Unit Tests
