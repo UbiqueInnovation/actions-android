@@ -23,6 +23,11 @@ on:
         required: false
         default: '17'
         description: The JDK version to use. Default is 17.
+      android_image_version:
+        type: string
+        required: false
+        default: '2024.04.1-ndk'
+        description: The Android image version to use. Default is 2024.04.1-ndk.
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -50,7 +55,7 @@ jobs:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:2024.04.1-ndk
+      image: cimg/android:${{ inputs.android_image_version }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)

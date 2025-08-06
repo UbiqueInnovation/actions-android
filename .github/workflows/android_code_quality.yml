@@ -51,7 +51,11 @@ on:
         type: string
         required: false
         default: '["k8s-runner"]'
-
+      android_image_version:
+        type: string
+        required: false
+        default: '2024.04.1-ndk'
+        description: The Android image version to use. Default is 2024.04.1-ndk.
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -89,7 +93,7 @@ jobs:
     name: Run code quality checks
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:2024.04.1-ndk
+      image: cimg/android:${{ inputs.android_image_version }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
