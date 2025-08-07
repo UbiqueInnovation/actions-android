@@ -155,23 +155,27 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
-      # Build and upload app to Alpaka
-      - name: Build app
-        uses: gradle/actions/setup-gradle@v3.1.0
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
         with:
           cache-disabled: true
-          build-root-directory: ${{ inputs.workingDirectory }}
-          arguments: |
-            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
-            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
-            -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
-            -Pbuild_id=${{ steps.vars.outputs.build_id }}
-            -Pbuild_number=${{ steps.vars.outputs.build_number }}
-            -Pbranch=${{ github.ref_name }}
-            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+
+      # Build and upload app to Alpaka
+      - name: Build app
+        working-directory: ${{ inputs.workingDirectory }}
+        run: |
+          ./gradlew 
+          :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
+          -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+          -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
+          -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+          -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+          -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
+          -Pbuild_id=${{ steps.vars.outputs.build_id }}
+          -Pbuild_number=${{ steps.vars.outputs.build_number }}
+          -Pbranch=${{ github.ref_name }}
+          ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}

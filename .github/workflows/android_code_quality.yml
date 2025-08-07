@@ -166,35 +166,32 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
+        with:
+          cache-disabled: true
+
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.runTests) }}
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Android Lint checks
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.runLint) }}
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
         id: sonarqube
         if: ${{ fromJSON(inputs.runSonarqube) }}
-        uses: gradle/actions/setup-gradle@v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
-        with:
-          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
@@ -256,13 +253,17 @@ jobs:
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
 
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
+        with:
+          cache-disabled: true
+
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
+
       - name: Find APK and Mapping
         id: find-apk
         shell: bash

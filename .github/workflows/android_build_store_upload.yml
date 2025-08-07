@@ -90,11 +90,14 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
+        
       # Setup the build environment with Gradle
       - name: Build app
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: |
+        run: |
+          ./gradlew
             :${{ inputs.appModule }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
@@ -114,7 +117,7 @@ jobs:
             **/${{ inputs.appModule }}/build/outputs/**/*.aab
 
       - name: Upload app artifact
-        uses: gradle/actions/setup-gradle@v3.1.0
+        uses: gradle/actions/setup-gradle@v4.4.2
         with:
           arguments: |
             :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle --artifact-dir ${{ inputs.appModule }}/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload

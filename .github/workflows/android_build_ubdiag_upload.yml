@@ -151,13 +151,17 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
-      # Setup the build environment with Gradle
-      - name: Build app
-        uses: gradle/actions/setup-gradle@v3.1.0
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
         with:
           cache-disabled: true
-          build-root-directory: ${{ inputs.workingDirectory }}
-          arguments: |
+
+      # Setup the build environment with Gradle
+      - name: Build app
+        working-directory: ${{ inputs.workingDirectory }}
+        run: |
+          ./gradlew 
             :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}

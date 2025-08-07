@@ -79,12 +79,15 @@ jobs:
             exit 1
           fi
 
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
+
       # Run the Gradle publish task
       - name: Build and publish artifact
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          build-root-directory: ${{ inputs.workingDirectory }}
-          arguments: |
+        working-directory: ${{ inputs.workingDirectory }}
+        run: |
+          ./gradlew 
             :${{ inputs.libModule }}:publish
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}

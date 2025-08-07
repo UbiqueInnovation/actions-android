@@ -96,15 +96,18 @@ jobs:
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
 
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4.4.2
+        with:
+          cache-disabled: true
+
       - name: Run Gradle task
-        uses: gradle/actions/setup-gradle@v3.1.0
+        id: run-gradle
         env:
           UB_ARTIFACTORY_URL: ${{ secrets.UB_ARTIFACTORY_URL }}
           UB_ARTIFACTORY_REPO_ANDROID: ${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
           UB_ARTIFACTORY_URL_ANDROID: '${{ secrets.UB_ARTIFACTORY_URL }}${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}'
           UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USER }}
           UB_ARTIFACTORY_PASSWORD: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-        with:
-          cache-disabled: true
-          build-root-directory: './'
-          arguments: ${{ inputs.task }} ${{ inputs.gradleArgs }}
+        run: ${{ inputs.task }} ${{ inputs.gradleArgs }}
