@@ -51,7 +51,15 @@ on:
         type: string
         required: false
         default: '["k8s-runner"]'
-
+      android_image_version:
+        type: string
+        required: false
+        default: '2024.04.1-ndk'
+        description: The Android image version to use. Default is 2024.04.1-ndk.
+      setup_rust_tool_chain:
+        required: false
+        default: false
+        type: boolean
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -89,7 +97,7 @@ jobs:
     name: Run code quality checks
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:2024.04.1-ndk
+      image: cimg/android:${{ inputs.android_image_version }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -152,6 +160,11 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
+
+      # Setup rust Tool Chain
+      - name: Setup rust Tool Chain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        if: ${{ inputs.setup_rust_tool_chain }}
 
       # Run Unit Tests
       - name: Run Unit Tests
