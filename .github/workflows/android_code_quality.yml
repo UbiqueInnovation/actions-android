@@ -193,7 +193,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
         with:
-          arguments: :${{ inputs.appModule }}:sonarqube ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.appModule }}:sonar ${{ steps.vars.outputs.gradle_properties }} --daemon
           cache-disabled: true
 
       # Publish test results to pull requests
