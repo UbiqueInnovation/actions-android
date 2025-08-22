@@ -85,6 +85,11 @@ jobs:
       # Cancel any previous runs that have not yet finished for the configured concurrency group
       group: ${{ inputs.concurrencyGroup }}
       cancel-in-progress: true
+    outputs:
+      build_id: ${{ steps.vars.outputs.build_id }}
+      build_batch: ${{ steps.vars.outputs.build_batch }}
+      build_number: ${{ steps.vars.outputs.build_number }}
+      flavor_capitalized: ${{ steps.vars.outputs.flavor_capitalized }}
     steps:
       # Checkout repository and submodules
       - name: Checkout
