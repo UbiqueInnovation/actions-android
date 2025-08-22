@@ -20,9 +20,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout PR repo
         uses: actions/checkout@v4
 
+      - name: Checkout this workflow repo (with script)
+        uses: actions/checkout@v4
+        with:
+          repository: your-org/test-casegen-action
+          ref: feature/generate-test-cases
+          path: test-action 
+          
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -32,7 +39,7 @@ jobs:
         run: pip install openai requests
         
       - name: Generate and Comment Test Cases
-        run: python ./generate-testcases.py
+        run: python test-action/generate-testcases.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
