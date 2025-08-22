@@ -1,8 +1,24 @@
 name: Generate Test Cases for PR
 
 on:
-  pull_request:
-    types: [ opened, synchronize, reopened ]
+  workflow_call:
+    inputs:
+      flavor:
+        type: string
+        required: true
+      concurrencyGroup:
+        type: string
+        required: false
+        default: ${{ github.workflow }}-${{ github.ref }}
+    secrets:
+      OPENAI_API_KEY:
+        required: true
+      GH_TOKEN:
+        required: true
+      PR_NUMBER:
+        required: true
+      GITHUB_REPOSITORY:
+        required: true
 
 jobs:
   generate-test-cases:
