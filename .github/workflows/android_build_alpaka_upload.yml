@@ -124,7 +124,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build_id
-          path: build_id.txt
+          path: ${{ inputs.workingDirectory }}/build_id.txt
 
       # Setup JDK environment
       - name: Set up JDK
