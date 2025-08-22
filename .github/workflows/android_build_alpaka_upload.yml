@@ -92,13 +92,13 @@ jobs:
       flavor_capitalized: ${{ steps.vars.outputs.flavor_capitalized }}
     steps:
       # Checkout repository and submodules
-#      - name: Checkout
-#        uses: actions/checkout@v4.1.1
-#        with:
-#          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-#          submodules: 'recursive'
-#          lfs: 'true'
-#          fetch-depth: 10
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+          fetch-depth: 10
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -113,7 +113,6 @@ jobs:
           
           buildId=$(cat /proc/sys/kernel/random/uuid)
           echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
-          echo "Build ID: $buildId"
           
           buildNumber=${{ github.run_number }}
           echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
@@ -128,64 +127,72 @@ jobs:
           path: build_id.txt
 
       # Setup JDK environment
-#      - name: Set up JDK
-#        uses: actions/setup-java@v4.2.1
-#        with:
-#          distribution: 'zulu'
-#          java-version: '17'
-#
-#      - name: Install zstd
-#        run: sudo apt-get install -y zstd
-#
-#      - name: Cache Gradle packages on self-hosted MinIO
-#        uses: tespkg/actions-cache@v1.7.1
-#        if: false # Disabled for now to test if it's faster without it
-#        with:
-#          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-#          port: ${{ inputs.self_hosted_cache_port }}
-#          insecure: true
-#          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-#          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-#          bucket: ${{ inputs.self_hosted_cache_bucket }}
-#          region: ${{ inputs.self_hosted_cache_region }}
-#          use-fallback: true
-#          path: |
-#            ~/.gradle/caches
-#            ~/.gradle/wrapper
-#          key: cimg-android-${{ inputs.cacheKeyPrefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-#          restore-keys: |
-#            cimg-android-${{ inputs.cacheKeyPrefix }}-gradle-
-#
-#      # Setup rust Tool Chain
-#      - name: Setup rust Tool Chain
-#        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-#        if: ${{ inputs.setup_rust_tool_chain }}
-#
-#      # Build and upload app to Alpaka
-#      - name: Build app
-#        uses: gradle/actions/setup-gradle@v3.1.0
-#        with:
-#          cache-disabled: true
-#          build-root-directory: ${{ inputs.workingDirectory }}
-#          arguments: |
-#            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
-#            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-#            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
-#            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-#            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
-#            -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
-#            -Pbuild_id=${{ steps.vars.outputs.build_id }}
-#            -Pbuild_number=${{ steps.vars.outputs.build_number }}
-#            -Pbranch=${{ github.ref_name }}
-#            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
-#        env:
-#          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-#          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
-#
-#      # Write Alpaka build info to GitHub job summary
-#      - name: Alpaka Build Summary
-#        run: |
-#          echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
-#          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
-#          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
-#          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
+      - name: Set up JDK
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install zstd
+        run: sudo apt-get install -y zstd
+
+      - name: Cache Gradle packages on self-hosted MinIO
+        uses: tespkg/actions-cache@v1.7.1
+        if: false # Disabled for now to test if it's faster without it
+        with:
+          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
+          port: ${{ inputs.self_hosted_cache_port }}
+          insecure: true
+          accessKey: ${{ secrets.self_hosted_cache_access_key }}
+          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
+          bucket: ${{ inputs.self_hosted_cache_bucket }}
+          region: ${{ inputs.self_hosted_cache_region }}
+          use-fallback: true
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: cimg-android-${{ inputs.cacheKeyPrefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            cimg-android-${{ inputs.cacheKeyPrefix }}-gradle-
+
+      # Setup rust Tool Chain
+      - name: Setup rust Tool Chain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        if: ${{ inputs.setup_rust_tool_chain }}
+
+      # Build and upload app to Alpaka
+      - name: Build app
+        uses: gradle/actions/setup-gradle@v3.1.0
+        with:
+          cache-disabled: true
+          build-root-directory: ${{ inputs.workingDirectory }}
+          arguments: |
+            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
+            -Pbuild_id=${{ steps.vars.outputs.build_id }}
+            -Pbuild_number=${{ steps.vars.outputs.build_number }}
+            -Pbranch=${{ github.ref_name }}
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
+
+      # Write Alpaka build info to GitHub job summary
+      - name: Alpaka Build Summary
+        run: |
+          echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
+
+      - name: store APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-apk
+          path: |
+            **/${{inputs.appModule}}/build/outputs/**/*.apk
+
