@@ -113,6 +113,7 @@ jobs:
           
           buildId=$(cat /proc/sys/kernel/random/uuid)
           echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
+          echo "Build ID: $buildId"
           
           buildNumber=${{ github.run_number }}
           echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
