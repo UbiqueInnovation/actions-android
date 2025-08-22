@@ -26,7 +26,7 @@ jobs:
       - name: Checkout this workflow repo (with script)
         uses: actions/checkout@v4
         with:
-          repository:  UbiqueInnovation/actions-android
+          repository: UbiqueInnovation/actions-android
           ref: feature/generate-test-cases
           path: test-action 
           
