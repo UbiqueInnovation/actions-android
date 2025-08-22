@@ -1,0 +1,32 @@
+name: Run Maestro Test
+
+description: Run Maestro tests in your GitHub Actions workflow
+
+inputs:
+  apk_path:
+    description: 'Path to the APK file to be tested'
+    required: true
+  maestro_flows:
+    description: 'Zip file containing Maestro flows'
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@latest
+      with:
+        python-version: 1.13.0
+
+    - name: Install uv
+      shell: bash
+      run: pipx install uv
+
+    - name: Install Maestro script dependencies
+      shell: bash
+      run: uv sync
+
+    - name: Run Maestro tests
+      shell: bash
+      run: |
+        uv run cli.py run --apk ${{ inputs.apk_path }} --flow ${{ inputs.maestro_flows }}
