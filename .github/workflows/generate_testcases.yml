@@ -3,21 +3,16 @@ name: Generate Test Cases for PR
 on:
   workflow_call:
     inputs:
-      flavor:
+      PR_NUMBER:
         type: string
         required: true
-      concurrencyGroup:
+      GITHUB_REPOSITORY:
         type: string
-        required: false
-        default: ${{ github.workflow }}-${{ github.ref }}
+        required: true
     secrets:
       OPENAI_API_KEY:
         required: true
       GH_TOKEN:
-        required: true
-      PR_NUMBER:
-        required: true
-      GITHUB_REPOSITORY:
         required: true
 
 jobs:
@@ -40,6 +35,46 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GITHUB_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY }}
+        run: python generate-testcases/generate-testcases.py
+name: Generate Test Cases for PR
+
+on:
+  workflow_call:
+    inputs:
+      PR_NUMBER:
+        type: string
+        required: true
+      GITHUB_REPOSITORY:
+        type: string
+        required: true
+    secrets:
+      OPENAI_API_KEY:
+        required: true
+      GH_TOKEN:
+        required: true
+
+jobs:
+  generate-test-cases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install openai requests
+
+      - name: Generate and Comment Test Cases
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.PR_NUMBER }}
+          GITHUB_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY }}
         run: python generate-testcases/generate-testcases.py
