@@ -8,25 +8,44 @@ inputs:
     required: true
   maestro_flows:
     description: 'Zip file containing Maestro flows'
-    required: false
+    required: true
+  browserstack_username:
+    description: 'BrowserStack username'
+    required: true
+  browserstack_access_key:
+    description: 'BrowserStack access key'
+    required: true
+
+outputs:
+  build_id:
+    description: 'The BrowserStack build ID created by this run'
+    value: ${{ steps.run.outputs.build_id }}
 
 runs:
   using: "composite"
   steps:
     - name: Set up Python
-      uses: actions/setup-python@latest
+      uses: actions/setup-python@v5
       with:
-        python-version: 1.13.0
+        python-version: '3.12'
 
     - name: Install uv
       shell: bash
-      run: pipx install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
     - name: Install Maestro script dependencies
       shell: bash
+      working-directory: ${{ github.action_path }}
       run: uv sync
 
-    - name: Run Maestro tests
+    - id: run
+      name: Run Maestro tests
       shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        BROWSERSTACK_USERNAME: ${{ inputs.browserstack_username }}
+        BROWSERSTACK_ACCESS_KEY: ${{ inputs.browserstack_access_key }}
       run: |
-        uv run cli.py run --apk ${{ inputs.apk_path }} --flow ${{ inputs.maestro_flows }}
+        uv run cli.py --apk ${{ inputs.apk_path }} --flow ${{ inputs.maestro_flows }}
