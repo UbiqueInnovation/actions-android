@@ -31,9 +31,6 @@ jobs:
       - name: Install dependencies
         run: pip install openai requests
         
-      - name: Debug: list root folder
-        run: ls -la .
-
       - name: Generate and Comment Test Cases
         run: python ./generate-testcases.py
         env:
