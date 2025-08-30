@@ -121,6 +121,16 @@ jobs:
           
           buildNumber=${{ github.run_number }}
           echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
+
+      - name: write build_id to file
+        run: echo "${{ steps.vars.outputs.build_id }}" > build_id.txt
+
+      - name: upload build_id as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.flavor }}_build_id
+          path: ${{ inputs.workingDirectory }}/build_id.txt
+
       # Setup JDK environment
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1
