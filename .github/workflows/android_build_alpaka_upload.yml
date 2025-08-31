@@ -125,10 +125,10 @@ jobs:
       - name: write build_id to file
         run: echo "${{ steps.vars.outputs.build_id }}" > build_id.txt
 
-      - name: save build_id to cache
-        uses: actions/cache/save@v4
+      - name: upload build_id as artifact
+        uses: actions/upload-artifact@v4
         with:
-          key: ${{ github.sha }}_${{ inputs.flavor }}_build_id
+          name: ${{ inputs.flavor }}_build_id
           path: ${{ inputs.workingDirectory }}/build_id.txt
 
       # Setup JDK environment
