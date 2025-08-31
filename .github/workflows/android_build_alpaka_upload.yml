@@ -128,7 +128,7 @@ jobs:
       - name: save build_id to cache
         uses: actions/cache/save@v4
         with:
-          key: ${{ inputs.flavor }}_build_id
+          key: ${{ github.sha }}_${{ inputs.flavor }}_build_id
           path: ${{ inputs.workingDirectory }}/build_id.txt
 
       # Setup JDK environment
