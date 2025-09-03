@@ -181,6 +181,7 @@ jobs:
             -Pbuild_id=${{ steps.vars.outputs.build_id }}
             -Pbuild_number=${{ steps.vars.outputs.build_number }}
             -Pbranch=${{ github.ref_name }}
+            -PcommitHash=${{ github.sha }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
