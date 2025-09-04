@@ -1,0 +1,50 @@
+name: Upload Screenshots to Alpaka
+
+inputs:
+  flavor:
+    type: string
+    required: true
+  SCREENSHOTS_DIR:
+    type: string
+    required: true
+secrets:
+  ALPAKA_UPLOAD_KEY:
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: load build_id
+      uses: actions/download-artifact@v4
+      with:
+        name: {{ inputs.flavor }}_build_id
+
+    - name: Display build_id
+      run: cat build_id.txt
+
+    - name: 'Upload screenshots'
+      id: uploadScreenshots
+      env:
+        ALPAKA_UPLOAD_URL: https://alpaka.ubique.ch/v1/screenshots/upload
+        BUILD_ID: $(cat build_id.txt)
+        UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
+        SCREENSHOTS_DIR: ${{ inputs.SCREENSHOTS_DIR }}
+      run: |
+        curl_cmd="curl -X POST $ALPAKA_UPLOAD_URL"
+        for file in "$SCREENSHOTS_DIR"/*; do
+          [ -f "$file" ] && curl_cmd="$curl_cmd -F screenshots=@$file"
+        done
+        BUILD_ID=$(cat build_id.txt)
+        curl_cmd="$curl_cmd -F 'data={\"uploadKey\":\"$UPLOAD_KEY\",\"buildId\":\"$BUILD_ID\"};type=application/json'"
+        echo "Running: $curl_cmd"
+        response=$(eval $curl_cmd)
+        echo "Response: $response"
+        
+        if ! echo "$response" | grep -q '"success"'; then
+          echo "Screenshot upload failed (no success flag)!"
+          exit 1
+        fi
+        
+        if echo "$response" | grep -q '"failure"'; then
+          echo "Screenshot upload failed (failure found)!"
+          exit 1
+        fi

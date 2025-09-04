@@ -1,0 +1,116 @@
+name: Alpaka Screnshot Compare for Pull-Requests
+
+on:
+  workflow_call:
+    inputs:
+      flavor:
+        type: string
+        required: true
+      runs-on:
+        type: string
+        required: false
+        default: '["k8s-runner"]'
+      android_image_version:
+        type: string
+        required: false
+        default: '2024.04.1-ndk'
+        description: The Android image version to use. Default is 2024.04.1-ndk.
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: true
+
+jobs:
+  build:
+    name: Compare screenshots
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    container:
+      image: cimg/android:${{ inputs.android_image_version }}
+    timeout-minutes: 35
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          submodules: 'recursive'
+          lfs: 'true'
+          fetch-depth: 10
+
+      - name: Create or update comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_BRANCH_NAME: ${{ github.event.pull_request.base.ref }}
+          COMMIT_HASH: ${{ github.event.pull_request.head.sha }}
+          FLAVOR: ${{ inputs.flavor }}
+        shell: bash
+        run: |
+          success=false
+          for attempt in {1..30}; do
+
+            BODY="<!-- sticky:screenshot-status --><h1>Screenshot Diff Report</h1>"
+          
+            ENCODED_BRANCH=$(jq -rn --arg v "$BASE_BRANCH_NAME" '$v|@uri')
+            curl_url="https://alpaka.ubique.ch/v1/screenshots/diff?referenceBranch=$ENCODED_BRANCH&flavor=$FLAVOR&compareCommitHash=$COMMIT_HASH"
+            echo "Running: $curl_url"
+            response=$(curl -s -w "%{http_code}" -o tmp_response.json "$curl_url")
+            http_status="${response: -3}"
+            body=$(cat tmp_response.json)
+            retry=false
+          
+            if [ "$http_status" = "200" ]; then
+              echo "✅ Response received with status: $http_status"
+              reportUrl=$(echo "$body" | jq -r '.reportUrl')
+              total=$(echo "$body" | jq -r '.totalScreenshots')
+              diff=$(echo "$body" | jq -r '.diffScreenshots')
+          
+              if (( total == 0 )); then
+                BODY+="️&#x2757; No screenshots found! "
+                if (( attempt < 30 )); then
+                  BODY+="Trying again in a minute..."
+                fi
+                retry=true
+              elif (( diff > 0 )); then
+                BODY+="&#x274C; Screenshot differences found!"
+              else
+                BODY+="&#x2705; No screenshot differences."
+                success=true
+              fi
+              BODY+="<br/>Report: $reportUrl"
+              BODY+="<br/>Screenshots Total: $total, Diff: $diff"
+            else
+              echo "❗Resource not found (404)"
+              BODY+="️&#x2757; Reference or compare build not found! "
+              if (( attempt < 30 )); then
+                BODY+="Trying again in a minute..."
+              fi
+              retry=true
+            fi
+          
+            # nach bestehendem sticky-Kommentar suchen
+            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
+              --jq '.[] | select(.body|contains("<!-- sticky:screenshot-status -->")) | .id')
+          
+            if [ -n "$COMMENT_ID" ]; then
+              echo "Updating existing comment $COMMENT_ID"
+              gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+                -X PATCH -f body="$BODY"
+            else
+              echo "Creating new comment"
+              gh pr comment $PR_NUMBER --body "$BODY"
+            fi
+          
+            if [ "$retry" = true ]; then
+              sleep 60
+            else
+              break
+            fi
+          
+          done
+          
+          if [ "$success" = true ]; then
+            exit 0
+          else
+            exit 1
+          fi

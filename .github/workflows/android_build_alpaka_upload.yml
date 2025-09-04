@@ -1,4 +1,4 @@
-name: Build and Upload to Linth
+name: Build and Upload to Alpaka
 
 on:
   workflow_call:
