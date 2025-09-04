@@ -15,7 +15,7 @@ runs:
     - name: load build_id
       uses: actions/download-artifact@v4
       with:
-        name: {{ inputs.flavor }}_build_id
+        name: flavordevPreview_build_id
 
     - name: Display build_id
       run: cat build_id.txt
