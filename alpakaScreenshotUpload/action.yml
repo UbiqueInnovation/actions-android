@@ -18,10 +18,12 @@ runs:
         name: flavordevPreview_build_id
 
     - name: Display build_id
+      shell: bash
       run: cat build_id.txt
 
     - name: 'Upload screenshots'
       id: uploadScreenshots
+      shell: bash
       env:
         ALPAKA_UPLOAD_URL: https://alpaka.ubique.ch/v1/screenshots/upload
         BUILD_ID: $(cat build_id.txt)
