@@ -15,7 +15,7 @@ runs:
     - name: load build_id
       uses: actions/download-artifact@v4
       with:
-        name: {{ inputs.BUILD_ID_ARTIFACT }}
+        name: ${{ inputs.BUILD_ID_ARTIFACT }}
 
     - name: Display build_id
       shell: bash
