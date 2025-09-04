@@ -68,10 +68,11 @@ jobs:
             if [ "$http_status" = "200" ]; then
               echo "✅ Response received with status: $http_status"
               reportUrl=$(echo "$body" | jq -r '.reportUrl')
-              total=$(echo "$body" | jq -r '.totalScreenshots')
+              total=$(echo "$body" | jq -r '.totalScreenshotsCompared')
+              referenceCount=$(echo "$body" | jq -r '.referenceScreenshots')
               diff=$(echo "$body" | jq -r '.diffScreenshots')
           
-              if (( total == 0 )); then
+              if (( total == 0 && referenceCount>0 )); then
                 BODY+="️&#x2757; No screenshots found! "
                 if (( attempt < 30 )); then
                   BODY+="Trying again in a minute..."
@@ -83,7 +84,7 @@ jobs:
                 BODY+="&#x2705; No screenshot differences."
                 success=true
               fi
-              BODY+="<br/>Report: $reportUrl"
+              BODY+="<br/><a href='$reportUrl'>Screenshot Report</a>"
               BODY+="<br/>Screenshots Total: $total, Diff: $diff"
             else
               echo "❗Resource not found (404)"
