@@ -7,7 +7,6 @@ inputs:
   SCREENSHOTS_DIR:
     type: string
     required: true
-secrets:
   ALPAKA_UPLOAD_KEY:
     required: true
 runs:
@@ -26,7 +25,7 @@ runs:
       env:
         ALPAKA_UPLOAD_URL: https://alpaka.ubique.ch/v1/screenshots/upload
         BUILD_ID: $(cat build_id.txt)
-        UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
+        UPLOAD_KEY: ${{ inputs.ALPAKA_UPLOAD_KEY }}
         SCREENSHOTS_DIR: ${{ inputs.SCREENSHOTS_DIR }}
       run: |
         curl_cmd="curl -X POST $ALPAKA_UPLOAD_URL"
