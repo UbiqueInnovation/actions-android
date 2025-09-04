@@ -85,7 +85,7 @@ jobs:
                 success=true
               fi
               BODY+="<br/><a href='$reportUrl'>Screenshot Report</a>"
-              BODY+="<br/>Screenshots Total: $total, Diff: $diff"
+              BODY+="<br/>Compared Screenshots Total: $total, Diff: $diff"
             else
               echo "❗Resource not found (404)"
               BODY+="️&#x2757; Reference or compare build not found! "
