@@ -1,7 +1,7 @@
 name: Upload Screenshots to Alpaka
 
 inputs:
-  flavor:
+  BUILD_ID_ARTIFACT:
     type: string
     required: true
   SCREENSHOTS_DIR:
@@ -15,7 +15,7 @@ runs:
     - name: load build_id
       uses: actions/download-artifact@v4
       with:
-        name: flavordevPreview_build_id
+        name: {{ inputs.BUILD_ID_ARTIFACT }}
 
     - name: Display build_id
       shell: bash
