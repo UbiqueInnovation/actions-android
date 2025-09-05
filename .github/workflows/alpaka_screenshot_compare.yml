@@ -1,4 +1,4 @@
-name: Alpaka Screnshot Compare for Pull-Requests
+name: Alpaka Screenshot Compare for Pull-Requests
 
 on:
   workflow_call:
