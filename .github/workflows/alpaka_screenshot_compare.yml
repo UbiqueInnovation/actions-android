@@ -70,9 +70,10 @@ jobs:
               reportUrl=$(echo "$body" | jq -r '.reportUrl')
               total=$(echo "$body" | jq -r '.totalScreenshotsCompared')
               referenceCount=$(echo "$body" | jq -r '.referenceScreenshots')
+              compareCount=$(echo "$body" | jq -r '.compareScreenshots')
               diff=$(echo "$body" | jq -r '.diffScreenshots')
           
-              if (( total == 0 && referenceCount>0 )); then
+              if (( total == 0 && ( referenceCount > 0 || compareCount == 0 ) )); then
                 BODY+="️&#x2757; No screenshots found! "
                 if (( attempt < 30 )); then
                   BODY+="Trying again in a minute..."
