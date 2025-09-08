@@ -28,6 +28,11 @@ on:
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
+      sentry_log_level:
+        type: string
+        required: false
+        default: 'warn'
+        description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -105,6 +110,7 @@ jobs:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
 
       - name: Save app artifact
         uses: actions/upload-artifact@v4
@@ -126,3 +132,4 @@ jobs:
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
