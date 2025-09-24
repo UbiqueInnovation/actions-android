@@ -63,6 +63,11 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      upload_apk_as_artifact:
+        type: boolean
+        required: false
+        default: false
+        description: 'Whether to upload the generated APK as a GitHub artifact. Default is false.'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -192,6 +197,14 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
           ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
+
+      - name: Save app artifact
+        if: ${{ inputs.upload_apk_as_artifact }}
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: apk
+          path: |
+            **/${{ inputs.appModule }}/build/outputs/**/*.apk
 
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
