@@ -25,7 +25,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android_image_version }}
-    timeout-minutes: 35
+    timeout-minutes: 65
     permissions:
       pull-requests: write
     steps:
@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           success=false
-          for attempt in {1..30}; do
+          for attempt in {1..60}; do
 
             BODY="<!-- sticky:screenshot-status --><h1>Screenshot Diff Report</h1>"
           
