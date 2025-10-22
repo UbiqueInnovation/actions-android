@@ -63,9 +63,6 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
-      SSH_KEY:
-        description: 'SSH key to import'
-        required: false
       PRE_BUILD_SCRIPT:
         required: false
         type: string
@@ -86,6 +83,9 @@ on:
       ADDITIONAL_GRADLE_PROPS:
         required: false
       SENTRY_AUTH_TOKEN:
+        required: false
+      SSH_KEY:
+        description: 'SSH key to import'
         required: false
       self_hosted_cache_access_key:
         required: false
