@@ -118,7 +118,6 @@ jobs:
           fetch-depth: 10
 
       - name: "Add SSH Key"
-        if: ${{ secrets.SSH_KEY }}
         uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
