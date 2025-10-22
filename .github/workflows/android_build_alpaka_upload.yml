@@ -63,6 +63,9 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      SSH_KEY:
+        description: 'SSH key to import'
+        required: false
       PRE_BUILD_SCRIPT:
         required: false
         type: string
@@ -113,6 +116,12 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
           fetch-depth: 10
+
+      - name: "Add SSH Key"
+        if: ${{ inputs.SSH_KEY }}
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
+        with:
+          ssh-private-key: ${{ inputs.SSH_KEY }}
 
       # Run prebuild script
       - name: "Pre Build Script"
