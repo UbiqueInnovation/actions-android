@@ -118,10 +118,10 @@ jobs:
           fetch-depth: 10
 
       - name: "Add SSH Key"
-        if: ${{ inputs.SSH_KEY }}
+        if: ${{ secrets.SSH_KEY }}
         uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
         with:
-          ssh-private-key: ${{ inputs.SSH_KEY }}
+          ssh-private-key: ${{ secrets.SSH_KEY }}
 
       # Run prebuild script
       - name: "Pre Build Script"
