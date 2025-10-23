@@ -19,6 +19,11 @@ on:
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
+      workingDirectorySuffix:
+        type: string
+        default: ''
+        required: false
+        description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
       cacheKeyPrefix:
         type: string
         required: false
@@ -212,7 +217,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           cache-disabled: true
-          build-root-directory: ${{ inputs.workingDirectory }}
+          build-root-directory: ${{ inputs.workingDirectory }}${{ inputs.workingDirectorySuffix }}
           arguments: |
             :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
