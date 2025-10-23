@@ -123,7 +123,9 @@ jobs:
           fetch-depth: 10
 
       - name: Ensure ~/.ssh is a directory
-        if: ${{ secrets.SSH_KEY }}
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
         shell: bash
         run: |
           if [ -e "$HOME/.ssh" ] && [ ! -d "$HOME/.ssh" ]; then
@@ -135,13 +137,17 @@ jobs:
           fi
 
       - name: "Add SSH Key"
-        if: ${{ secrets.SSH_KEY }}
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
         uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: "Add GitHub SSH keys to the known_hosts file"
-        if: ${{ secrets.SSH_KEY }}
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
         run: |
           cat >> ~/.ssh/known_hosts <<EOF
           github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
