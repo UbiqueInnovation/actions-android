@@ -72,6 +72,16 @@ on:
         required: false
         type: string
         description: 'bash script that is executed before the actual build'
+      git_branch:
+        required: false
+        type: string
+        default: ${{ github.ref_name }}
+        description: 'can be used to ovveride the github branch name that will be displayed in alpaka'
+      git_sha:
+        required: false
+        type: string
+        default: ${{ github.sha }}
+        description: 'can be used to ovveride the github commit hash that will be displayed in alpaka'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -236,8 +246,8 @@ jobs:
             -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
             -Pbuild_id=${{ steps.vars.outputs.build_id }}
             -Pbuild_number=${{ steps.vars.outputs.build_number }}
-            -Pbranch=${{ github.ref_name }}
-            -PcommitHash=${{ github.sha }}
+            -Pbranch=${{ inputs.git_branch }}
+            -PcommitHash=${{ inputs.git_sha }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
