@@ -19,6 +19,11 @@ on:
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
+      workingDirectorySuffix:
+        type: string
+        default: ''
+        required: false
+        description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
       cacheKeyPrefix:
         type: string
         required: false
@@ -63,6 +68,10 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      PRE_BUILD_SCRIPT:
+        required: false
+        type: string
+        description: 'bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -79,6 +88,9 @@ on:
       ADDITIONAL_GRADLE_PROPS:
         required: false
       SENTRY_AUTH_TOKEN:
+        required: false
+      SSH_KEY:
+        description: 'SSH key to import'
         required: false
       self_hosted_cache_access_key:
         required: false
@@ -109,6 +121,45 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
           fetch-depth: 10
+
+      - name: Ensure ~/.ssh is a directory
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        shell: bash
+        run: |
+          if [ -e "$HOME/.ssh" ] && [ ! -d "$HOME/.ssh" ]; then
+            echo "~/.ssh exists but is not a directory. Deleting it..."
+            rm -f "$HOME/.ssh"
+            echo "Removed ~/.ssh."
+          else
+            echo "~/.ssh is either a directory or does not exist. No action needed."
+          fi
+
+      - name: "Add SSH Key"
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: "Add GitHub SSH keys to the known_hosts file"
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        run: |
+          cat >> ~/.ssh/known_hosts <<EOF
+          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+          github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+          EOF
+        shell: bash
+
+      # Run prebuild script
+      - name: "Pre Build Script"
+        if: ${{ inputs.PRE_BUILD_SCRIPT }}
+        run: ${{ inputs.PRE_BUILD_SCRIPT }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -175,7 +226,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           cache-disabled: true
-          build-root-directory: ${{ inputs.workingDirectory }}
+          build-root-directory: ${{ inputs.workingDirectory }}${{ inputs.workingDirectorySuffix }}
           arguments: |
             :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
