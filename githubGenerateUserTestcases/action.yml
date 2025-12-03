@@ -1,0 +1,47 @@
+name: Generate Test Cases for PR
+
+inputs:
+  GITHUB_REPOSITORY:
+    type: string
+    required: true
+    description: The calling Github repository
+  OPENAI_API_KEY:
+      required: true
+      description: Open AI API Key for test generation
+  GH_TOKEN:
+      required: true
+      description: github token for access
+runs:
+  using: "composite"
+  steps:
+    - name: Check if running on PR
+      shell: bash
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "This is a Pull Request: #${GITHUB_REF##*/}"
+        else
+          echo "Not a Pull Request"
+          exit 1
+        fi
+      env:
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+    - name: Checkout PR repo
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      shell: bash
+      run: pip install openai requests
+
+    - name: Generate and Comment Test Cases
+      shell: bash
+      run: python ${{ github.action_path }}/generate-testcases.py
+      env:
+        OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
+        GH_TOKEN: ${{ inputs.GH_TOKEN }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY }}

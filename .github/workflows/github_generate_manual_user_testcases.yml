@@ -1,0 +1,31 @@
+name: Generate Test Cases for PR
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_REPOSITORY:
+        type: string
+        required: true
+        description: The calling Github repository
+    secrets:
+      OPENAI_API_KEY:
+        required: true
+      GH_TOKEN:
+        required: true
+
+jobs:
+  generate-test-cases:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Generate and Comment Test Cases
+        uses: UbiqueInnovation/actions-android/githubGenerateUserTestcases@main
+        with:
+          GITHUB_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}

@@ -3,7 +3,7 @@ import requests
 from openai import OpenAI
 
 # Load environment variables
-GITHUB_TOKEN = os.getenv("GH_TOKEN")
+GH_TOKEN = os.getenv("GH_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PR_NUMBER = os.getenv("PR_NUMBER")
 REPO = os.getenv("GITHUB_REPOSITORY")
@@ -13,7 +13,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 # GitHub API headers
 headers = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Authorization": f"Bearer {GH_TOKEN}",
     "Accept": "application/vnd.github.v3+json"
 }
 
@@ -34,6 +34,7 @@ def get_pr_info():
 def get_changed_files():
     """Get the list of files changed in the PR, with error handling."""
     url = f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}/files"
+    print("url", url)
     response = requests.get(url, headers=headers)
 
     try:
@@ -95,15 +96,57 @@ Test Case 2:
 
     return response.choices[0].message.content
 
-def post_comment(comment_body):
-    """Post the test case comment back to the PR."""
-    url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
-    response = requests.post(url, headers=headers, json={"body": comment_body})
-    if response.status_code == 201:
-        print("✅ Test cases posted successfully.")
+def post_comment(comment_body, marker="Suggested Manual Test Steps"):
+    """Create or update the test case comment on the PR."""
+    comments_url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
+
+    # 1. Fetch all existing comments
+    list_resp = requests.get(comments_url, headers=headers)
+
+    if list_resp.status_code != 200:
+        print(f"⚠️ Failed to fetch comments. Status: {list_resp.status_code}")
+        print("Response:", list_resp.text)
+        return
+
+    comments = list_resp.json()
+
+    # 2. Search for an existing test case comment
+    existing_comment_id = None
+    for c in comments:
+        if marker in c.get("body", ""):
+            existing_comment_id = c["id"]
+            break
+
+    # 3A. If comment doesn't exist → create new one
+    if existing_comment_id is None:
+        print("🆕 No existing test case comment found. Creating new comment...")
+        create_resp = requests.post(
+            comments_url,
+            headers=headers,
+            json={"body": comment_body},
+        )
+        if create_resp.status_code == 201:
+            print("✅ Test cases comment created successfully.")
+        else:
+            print(f"⚠️ Failed to create comment. Status: {create_resp.status_code}")
+            print("Response:", create_resp.text)
+        return
+
+    # 3B. If comment exists → update it
+    update_url = f"https://api.github.com/repos/{REPO}/issues/comments/{existing_comment_id}"
+    print(f"♻️ Updating existing test case comment (ID {existing_comment_id})...")
+
+    update_resp = requests.patch(
+        update_url,
+        headers=headers,
+        json={"body": comment_body},
+    )
+
+    if update_resp.status_code == 200:
+        print("✅ Test cases comment updated successfully.")
     else:
-        print(f"⚠️ Failed to post comment. Status: {response.status_code}")
-        print("Response:", response.text)
+        print(f"⚠️ Failed to update comment. Status: {update_resp.status_code}")
+        print("Response:", update_resp.text)
 
 def main():
     print("🔍 Fetching PR info...")
