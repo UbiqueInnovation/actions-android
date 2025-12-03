@@ -60,6 +60,11 @@ on:
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
+      sentry_log_level:
+        type: string
+        required: false
+        default: 'warn'
+        description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -170,6 +175,7 @@ jobs:
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
 
       # Upload to UBDiag
       - name: Upload build to UBDiag
