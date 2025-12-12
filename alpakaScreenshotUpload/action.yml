@@ -29,6 +29,7 @@ runs:
         UPLOAD_KEY: ${{ inputs.ALPAKA_UPLOAD_KEY }}
         SCREENSHOTS_DIR: ${{ inputs.SCREENSHOTS_DIR }}
       run: |
+        find "$SCREENSHOTS_DIR" -mindepth 2 -type f -exec cp {} "$SCREENSHOTS_DIR"/ \;
         curl_cmd="curl -X POST $ALPAKA_UPLOAD_URL"
         for file in "$SCREENSHOTS_DIR"/*; do
           [ -f "$file" ] && curl_cmd="$curl_cmd -F screenshots=@$file"
