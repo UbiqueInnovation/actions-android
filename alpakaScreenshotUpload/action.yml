@@ -29,22 +29,40 @@ runs:
         UPLOAD_KEY: ${{ inputs.ALPAKA_UPLOAD_KEY }}
         SCREENSHOTS_DIR: ${{ inputs.SCREENSHOTS_DIR }}
       run: |
-        curl_cmd="curl -X POST $ALPAKA_UPLOAD_URL"
-        for file in "$SCREENSHOTS_DIR"/*; do
-          [ -f "$file" ] && curl_cmd="$curl_cmd -F screenshots=@$file"
-        done
+        find "$SCREENSHOTS_DIR" -mindepth 2 -type f -exec cp {} "$SCREENSHOTS_DIR"/ \;
         BUILD_ID=$(cat build_id.txt)
-        curl_cmd="$curl_cmd -F 'data={\"uploadKey\":\"$UPLOAD_KEY\",\"buildId\":\"$BUILD_ID\"};type=application/json'"
-        echo "Running: $curl_cmd"
-        response=$(eval $curl_cmd)
-        echo "Response: $response"
+        BATCH_SIZE=8
         
-        if ! echo "$response" | grep -q '"success"'; then
-          echo "Screenshot upload failed (no success flag)!"
-          exit 1
-        fi
+        # Collect screenshots into an array
+        mapfile -t screenshots < <(find "$SCREENSHOTS_DIR" -maxdepth 1 -type f)
         
-        if echo "$response" | grep -q '"failure"'; then
-          echo "Screenshot upload failed (failure found)!"
-          exit 1
-        fi
+        total=${#screenshots[@]}
+        echo "Found $total screenshots"
+        
+        batch_start=0
+        batch_num=1
+        while [ $batch_start -lt $total ]; do
+          echo "Uploading batch $batch_num..."
+          curl_cmd="curl -X POST $ALPAKA_UPLOAD_URL"
+          for ((i=batch_start; i<batch_start+BATCH_SIZE && i<total; i++)); do
+            curl_cmd="$curl_cmd -F screenshots=@${screenshots[$i]}"
+          done
+        
+          curl_cmd="$curl_cmd -F 'data={\"uploadKey\":\"$UPLOAD_KEY\",\"buildId\":\"$BUILD_ID\"};type=application/json'"
+          echo "Running: $curl_cmd"
+          response=$(eval $curl_cmd)
+          echo "Response: $response"
+        
+          if ! echo "$response" | grep -q '"success"'; then
+            echo "Screenshot upload failed (no success flag)!"
+            exit 1
+          fi
+        
+          if echo "$response" | grep -q '"failure"'; then
+            echo "Screenshot upload failed (failure found)!"
+            exit 1
+          fi
+        
+          batch_start=$((batch_start + BATCH_SIZE))
+          batch_num=$((batch_num + 1))
+        done
