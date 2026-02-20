@@ -238,7 +238,7 @@ jobs:
           cache-disabled: true
           build-root-directory: ${{ inputs.workingDirectory }}${{ inputs.workingDirectorySuffix }}
           arguments: |
-            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:uploadToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
+            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:assembleAndPublishToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
