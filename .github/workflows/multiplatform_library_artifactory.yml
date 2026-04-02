@@ -28,6 +28,11 @@ on:
         required: false
         default: '17'
         description: The JDK version to use. Default is 17.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -58,7 +63,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Setup JDK environment
       - name: Set up JDK

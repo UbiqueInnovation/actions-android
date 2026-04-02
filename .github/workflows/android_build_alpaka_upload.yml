@@ -10,6 +10,7 @@ on:
         type: string
         required: false
         default: 'app'
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
       concurrencyGroup:
         type: string
         required: false
@@ -68,6 +69,11 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
       PRE_BUILD_SCRIPT:
         required: false
         type: string
@@ -129,7 +135,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
           fetch-depth: 10
 
       - name: Ensure ~/.ssh is a directory

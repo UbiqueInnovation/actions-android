@@ -44,6 +44,11 @@ on:
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       UB_ARTIFACTORY_URL:
         required: true
@@ -74,6 +79,8 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4.1.1
+        with:
+          lfs: ${{ inputs.use-git-lfs }}
       - name: Install zstd
         run: sudo apt-get install -y zstd
 

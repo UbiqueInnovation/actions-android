@@ -15,6 +15,11 @@ on:
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -40,7 +45,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
           fetch-depth: 10
 
       - name: Create or update comment

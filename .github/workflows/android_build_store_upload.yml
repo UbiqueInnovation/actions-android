@@ -10,6 +10,12 @@ on:
         type: string
         required: false
         default: 'app'
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
+      appModulePath:
+        type: string
+        required: false
+        default: ''
+        description: 'The path to the gradle module without trailing slash (e.g. custom "android/androidApp")'
       setup_rust_tool_chain:
         required: false
         default: false
@@ -22,17 +28,22 @@ on:
         type: string
         required: false
         default: '17'
-        description: The JDK version to use. Default is 17.
+        description: 'The JDK version to use. Default is 17.'
       android_image_version:
         type: string
         required: false
         default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
+        description: 'The Android image version to use. Default is 2024.04.1-ndk.'
       sentry_log_level:
         type: string
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      use-git-lfs:
+        type: boolean
+        required: false
+        default: false
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -66,6 +77,8 @@ jobs:
       # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
       group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.appModule }}
       cancel-in-progress: true
+    env:
+      AAB_STAGING_DIR: .tmp/publishing_aab
     steps:
       # Checkout repository and submodules
       - name: Checkout
@@ -73,7 +86,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -95,7 +108,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
         if: ${{ inputs.setup_rust_tool_chain }}
 
-      # Setup the build environment with Gradle
+      # Setup gradle and build the app
       - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
@@ -112,18 +125,31 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
 
+      # Copy the app to a temporary folder because the publish step clears the default aab output folder
+      - name: Stage AAB
+        run: |
+          mkdir -p "$AAB_STAGING_DIR"
+          APP_MODULE_PATH="${{ inputs.appModulePath }}"
+          if [ -z "$APP_MODULE_PATH" ]; then
+            APP_MODULE_PATH="${{ inputs.appModule }}"
+          fi
+          cp "$APP_MODULE_PATH"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
+
+      # Upload the .aab artifact
       - name: Save app artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-bundle
           path: |
-            **/${{ inputs.appModule }}/build/outputs/**/*.aab
+            ${{ env.AAB_STAGING_DIR }}/*.aab
 
+      # Publish the .aab to the play store
       - name: Upload app artifact
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: |
-            :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle --artifact-dir ${{ inputs.appModule }}/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload
+            :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+            --artifact-dir ${{ env.AAB_STAGING_DIR }}
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}

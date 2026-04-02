@@ -10,6 +10,12 @@ on:
         type: string
         required: false
         default: 'app'
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
+      appModulePath:
+        type: string
+        required: false
+        default: ''
+        description: 'The path to the gradle module without trailing slash (e.g. custom "android/androidApp")'
       runCoeus:
         type: boolean
         required: false
@@ -60,6 +66,11 @@ on:
         required: false
         default: false
         type: boolean
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -110,7 +121,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -118,7 +129,12 @@ jobs:
         shell: bash
         run: |
           export flavor=${{ inputs.flavor }}
+          appModulePath=${{ inputs.appModulePath }}
+          if [ -z "$appModulePath" ]; then
+            appModulePath=${{ inputs.appModule }}
+          fi
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
@@ -202,7 +218,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v1.36
         with:
           check_name: 'Unit Test Results'
-          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
+          files: ${{ steps.vars.outputs.app_module_path }}/build/test-results/**/*.xml
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
     name: Run coeus binary analysis
@@ -222,7 +238,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -230,7 +246,12 @@ jobs:
         shell: bash
         run: |
           export flavor=${{ inputs.flavor }}
+          appModulePath=${{ inputs.appModulePath }}
+          if [ -z "$appModulePath" ]; then
+            appModulePath=${{ inputs.appModule }}
+          fi
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
@@ -267,8 +288,8 @@ jobs:
         id: find-apk
         shell: bash
         run: |
-          export apk=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-          export mapping=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          export apk=`find $GITHUB_WORKSPACE/${{ steps.vars.outputs.app_module_path }}/build/outputs/apk/ -name '*.apk'`
+          export mapping=`find $GITHUB_WORKSPACE/${{ steps.vars.outputs.app_module_path }}/build/outputs/mapping/ -name 'mapping.txt' || true`
           echo "apk=${apk//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
           echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry

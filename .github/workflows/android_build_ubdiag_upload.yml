@@ -16,6 +16,12 @@ on:
         type: string
         required: false
         default: 'app'
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
+      appModulePath:
+        type: string
+        required: false
+        default: ''
+        description: 'The path to the gradle module without trailing slash (e.g. custom "android/androidApp")'
       concurrencyGroup:
         type: string
         required: false
@@ -65,6 +71,11 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -109,7 +120,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -118,8 +129,13 @@ jobs:
         run: |
           flavor=${{ inputs.flavor }}
           buildUuid=$(cat /proc/sys/kernel/random/uuid)
-          webIconPath=$GITHUB_WORKSPACE/${{ inputs.workingDirectory }}/${{ inputs.appModule }}/tmp_icon_large_for_backend.png
+          appModulePath=${{ inputs.appModulePath }}
+          if [ -z "$appModulePath" ]; then
+            appModulePath=${{ inputs.appModule }}
+          fi
+          webIconPath=$GITHUB_WORKSPACE/${{ inputs.workingDirectory }}/${appModulePath}/tmp_icon_large_for_backend.png
           echo "build_uuid=$buildUuid" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           echo "web_icon=$webIconPath" >> "$GITHUB_OUTPUT"
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
       # Setup JDK environment
@@ -185,7 +201,7 @@ jobs:
           projectKey: ${{ inputs.projectKey }}
           flavor: ${{ inputs.flavor }}
           app: ${{ inputs.app }}
-          appModuleDirectory: '${{ inputs.workingDirectory }}${{ inputs.appModule }}'
+          appModuleDirectory: '${{ inputs.workingDirectory }}${{ steps.vars.outputs.app_module_path }}'
           buildUuid: ${{ steps.vars.outputs.build_uuid }}
           webIconFile: tmp_icon_large_for_backend.png
           backendEndpoint: ${{ secrets.UBDIAG_UPLOAD_URL }}
