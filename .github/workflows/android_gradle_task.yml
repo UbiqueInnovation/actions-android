@@ -42,8 +42,8 @@ on:
       android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
       use-git-lfs:
         required: false
         default: false
@@ -78,7 +78,7 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
         with:
           lfs: ${{ inputs.use-git-lfs }}
       - name: Install zstd
@@ -103,15 +103,16 @@ jobs:
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.0.1
+        with:
+          cache-disabled: true
+
       - name: Run Gradle task
-        uses: gradle/actions/setup-gradle@v3.1.0
+        run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }}
         env:
           UB_ARTIFACTORY_URL: ${{ secrets.UB_ARTIFACTORY_URL }}
           UB_ARTIFACTORY_REPO_ANDROID: ${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
           UB_ARTIFACTORY_URL_ANDROID: '${{ secrets.UB_ARTIFACTORY_URL }}${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}'
           UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USER }}
           UB_ARTIFACTORY_PASSWORD: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-        with:
-          cache-disabled: true
-          build-root-directory: './'
-          arguments: ${{ inputs.task }} ${{ inputs.gradle-args }}

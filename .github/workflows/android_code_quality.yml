@@ -55,8 +55,8 @@ on:
       android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
       setup-rust-tool-chain:
         required: false
         default: false
@@ -112,7 +112,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -172,43 +172,39 @@ jobs:
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
         if: ${{ inputs.setup-rust-tool-chain }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.0.1
+        with:
+          cache-disabled: true
 
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.run-tests) }}
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: :${{ inputs.app-module }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Android Lint checks
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.run-lint) }}
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: :${{ inputs.app-module }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
         id: sonarqube
         if: ${{ fromJSON(inputs.run-sonarqube) }}
-        uses: gradle/actions/setup-gradle@v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
-        with:
-          arguments: :${{ inputs.app-module }}:sonar ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.vars.outputs.gradle_properties }} --daemon
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
         if: ${{ fromJSON(inputs.run-tests) && steps.tests.outcome == 'success' }}
-        uses: EnricoMi/publish-unit-test-result-action@v1.36
+        uses: EnricoMi/publish-unit-test-result-action@v2.21.0
         with:
           check_name: 'Unit Test Results'
           files: ${{ steps.vars.outputs.app_module_path }}/build/test-results/**/*.xml
@@ -217,7 +213,7 @@ jobs:
     name: Run coeus binary analysis
     runs-on: ['docker']
     container:
-      image: cimg/android:2024.04.1-ndk
+      image: cimg/android:${{ inputs.android-image-version }}
       options: '--group-add=123'
     timeout-minutes: 60
     concurrency:
@@ -227,7 +223,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -268,13 +264,15 @@ jobs:
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.0.1
+        with:
+          cache-disabled: true
+
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: :${{ inputs.app-module }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
-          cache-disabled: true
+        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
       - name: Find APK and Mapping
         id: find-apk
         shell: bash
@@ -285,7 +283,7 @@ jobs:
           echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
         id: coeus-docker-login
-        uses: azure/docker-login@v1
+        uses: azure/docker-login@v2
         with:
           login-server: ${{ secrets.ACR_REGISTRY }}
           username: ${{ secrets.ACR_USERNAME }}
