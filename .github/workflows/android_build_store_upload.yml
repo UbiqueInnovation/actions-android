@@ -11,11 +11,6 @@ on:
         required: false
         default: 'app'
         description: 'The gradle app module (e.g. custom "android:androidApp")'
-      appModulePath:
-        type: string
-        required: false
-        default: ''
-        description: 'The path to the gradle module without trailing slash (e.g. custom "android/androidApp")'
       setup_rust_tool_chain:
         required: false
         default: false
@@ -94,7 +89,10 @@ jobs:
         shell: bash
         run: |
           flavor=${{ inputs.flavor }}
+          appModulePath=${{ inputs.appModule }}
+          appModulePath=${appModulePath//:/\/}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
       - name: Set up JDK
@@ -129,11 +127,7 @@ jobs:
       - name: Stage AAB
         run: |
           mkdir -p "$AAB_STAGING_DIR"
-          APP_MODULE_PATH="${{ inputs.appModulePath }}"
-          if [ -z "$APP_MODULE_PATH" ]; then
-            APP_MODULE_PATH="${{ inputs.appModule }}"
-          fi
-          cp "$APP_MODULE_PATH"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
+          cp "${{ steps.vars.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
 
       # Upload the .aab artifact
       - name: Save app artifact

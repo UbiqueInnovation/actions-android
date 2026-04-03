@@ -11,11 +11,6 @@ on:
         required: false
         default: 'app'
         description: 'The gradle app module (e.g. custom "android:androidApp")'
-      appModulePath:
-        type: string
-        required: false
-        default: ''
-        description: 'The path to the gradle module without trailing slash (e.g. custom "android/androidApp")'
       runCoeus:
         type: boolean
         required: false
@@ -129,10 +124,8 @@ jobs:
         shell: bash
         run: |
           export flavor=${{ inputs.flavor }}
-          appModulePath=${{ inputs.appModulePath }}
-          if [ -z "$appModulePath" ]; then
-            appModulePath=${{ inputs.appModule }}
-          fi
+          appModulePath=${{ inputs.appModule }}
+          appModulePath=${appModulePath//:/\/}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
@@ -246,10 +239,8 @@ jobs:
         shell: bash
         run: |
           export flavor=${{ inputs.flavor }}
-          appModulePath=${{ inputs.appModulePath }}
-          if [ -z "$appModulePath" ]; then
-            appModulePath=${{ inputs.appModule }}
-          fi
+          appModulePath=${{ inputs.appModule }}
+          appModulePath=${appModulePath//:/\/}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
