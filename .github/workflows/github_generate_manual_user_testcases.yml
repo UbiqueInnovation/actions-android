@@ -7,7 +7,7 @@ permissions:
 on:
   workflow_call:
     inputs:
-      GITHUB_REPOSITORY:
+      github-repository:
         type: string
         required: true
         description: The calling Github repository
@@ -26,6 +26,6 @@ jobs:
       - name: Generate and Comment Test Cases
         uses: UbiqueInnovation/actions-android/githubGenerateUserTestcases@main
         with:
-          GITHUB_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY }}
+          GITHUB_REPOSITORY: ${{ inputs.github-repository }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}

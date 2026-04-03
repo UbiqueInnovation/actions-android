@@ -6,47 +6,47 @@ on:
       flavor:
         type: string
         required: true
-      appModule:
+      app-module:
         type: string
         required: false
         default: 'app'
         description: 'The gradle app module (e.g. custom "android:androidApp")'
-      concurrencyGroup:
+      concurrency-group:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
-      workingDirectory:
+      working-directory:
         type: string
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      workingDirectorySuffix:
+      working-directory-suffix:
         type: string
         default: ''
         required: false
         description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
-      cacheKeyPrefix:
+      cache-key-prefix:
         type: string
         required: false
         default: ${{ github.repository }}
-      self_hosted_cache_endpoint:
+      self-hosted-cache-endpoint:
         required: false
         default: 'truenas.local.lan'
         type: string
         description: Should be set for selfhosted builds, but build won't fail without it
-      self_hosted_cache_port:
+      self-hosted-cache-port:
         required: false
         default: 9001
         type: number
-      self_hosted_cache_bucket:
+      self-hosted-cache-bucket:
         required: false
         default: github-actions-cache
         type: string
-      self_hosted_cache_region:
+      self-hosted-cache-region:
         required: false
         default: local
         type: string
-      setup_rust_tool_chain:
+      setup-rust-tool-chain:
         required: false
         default: false
         type: boolean
@@ -59,12 +59,12 @@ on:
         required: false
         default: '17'
         description: The JDK version to use. Default is 17.
-      android_image_version:
+      android-image-version:
         type: string
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
-      sentry_log_level:
+      sentry-log-level:
         type: string
         required: false
         default: 'warn'
@@ -74,16 +74,16 @@ on:
         default: false
         type: boolean
         description: 'Use git lfs during repository checkout'
-      PRE_BUILD_SCRIPT:
+      pre-build-script:
         required: false
         type: string
         description: 'bash script that is executed before the actual build'
-      git_branch:
+      git-branch:
         required: false
         type: string
         default: ${{ github.ref_name }}
         description: 'can be used to ovveride the github branch name that will be displayed in alpaka'
-      git_sha:
+      git-sha:
         required: false
         type: string
         default: ${{ github.sha }}
@@ -119,14 +119,14 @@ jobs:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     defaults:
       run:
-        working-directory: ${{ inputs.workingDirectory }}
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for the configured concurrency group
-      group: ${{ inputs.concurrencyGroup }}
+      group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
       # Checkout repository and submodules
@@ -174,8 +174,8 @@ jobs:
 
       # Run prebuild script
       - name: "Pre Build Script"
-        if: ${{ inputs.PRE_BUILD_SCRIPT }}
-        run: ${{ inputs.PRE_BUILD_SCRIPT }}
+        if: ${{ inputs.pre-build-script }}
+        run: ${{ inputs.pre-build-script }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -201,7 +201,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.flavor }}_build_id
-          path: ${{ inputs.workingDirectory }}/build_id.txt
+          path: ${{ inputs.working-directory }}/build_id.txt
 
       # Setup JDK environment
       - name: Set up JDK
@@ -217,34 +217,34 @@ jobs:
         uses: tespkg/actions-cache@v1.7.1
         if: false # Disabled for now to test if it's faster without it
         with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
+          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
+          port: ${{ inputs.self-hosted-cache-port }}
           insecure: true
           accessKey: ${{ secrets.self_hosted_cache_access_key }}
           secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
+          bucket: ${{ inputs.self-hosted-cache-bucket }}
+          region: ${{ inputs.self-hosted-cache-region }}
           use-fallback: true
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.cacheKeyPrefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: cimg-android-${{ inputs.cache-key-prefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
-            cimg-android-${{ inputs.cacheKeyPrefix }}-gradle-
+            cimg-android-${{ inputs.cache-key-prefix }}-gradle-
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-        if: ${{ inputs.setup_rust_tool_chain }}
+        if: ${{ inputs.setup-rust-tool-chain }}
 
       # Build and upload app to Alpaka
       - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           cache-disabled: true
-          build-root-directory: ${{ inputs.workingDirectory }}${{ inputs.workingDirectorySuffix }}
+          build-root-directory: ${{ inputs.working-directory }}${{ inputs.working-directory-suffix }}
           arguments: |
-            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:assembleAndPublishToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
+            :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assembleAndPublishToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -252,12 +252,12 @@ jobs:
             -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
             -Pbuild_id=${{ steps.vars.outputs.build_id }}
             -Pbuild_number=${{ steps.vars.outputs.build_number }}
-            -Pbranch=${{ inputs.git_branch }}
-            -PcommitHash=${{ inputs.git_sha }}
+            -Pbranch=${{ inputs.git-branch }}
+            -PcommitHash=${{ inputs.git-sha }}
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
+          SENTRY_LOG_LEVEL: ${{ inputs.sentry-log-level }}
           ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
 
       # Write Alpaka build info to GitHub job summary
