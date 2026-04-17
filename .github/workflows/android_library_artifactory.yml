@@ -88,6 +88,7 @@ jobs:
       - name: Build and publish artifact
         run: |
           ./gradlew :${{ inputs.lib-module }}:publish \
+            ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}

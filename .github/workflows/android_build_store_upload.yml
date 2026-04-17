@@ -116,6 +116,7 @@ jobs:
       - name: Build app
         run: |
           ./gradlew :${{ inputs.app-module }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload \
+            ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
@@ -130,7 +131,7 @@ jobs:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ inputs.sentry-log-level }}
+          SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}
 
       # Copy the app to a temporary folder because the publish step clears the default aab output folder
       - name: Stage AAB
@@ -150,6 +151,7 @@ jobs:
       - name: Upload app artifact
         run: |
           ./gradlew :${{ inputs.app-module }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle \
+            ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }} \
             --artifact-dir "$AAB_STAGING_DIR" \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
@@ -159,4 +161,4 @@ jobs:
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ inputs.sentry-log-level }}
+          SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}

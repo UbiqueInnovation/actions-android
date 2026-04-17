@@ -63,7 +63,7 @@ jobs:
         run: sudo apt-get install -y zstd
 
       - name: Run Gradle task
-        run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }}
+        run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }} ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }}
         env:
           UB_ARTIFACTORY_URL: ${{ secrets.UB_ARTIFACTORY_URL }}
           UB_ARTIFACTORY_REPO_ANDROID: ${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
