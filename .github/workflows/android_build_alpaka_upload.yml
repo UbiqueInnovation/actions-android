@@ -77,17 +77,17 @@ on:
       pre-build-script:
         required: false
         type: string
-        description: 'bash script that is executed before the actual build'
+        description: 'Bash script that is executed before the actual build'
       git-branch:
         required: false
         type: string
         default: ${{ github.ref_name }}
-        description: 'can be used to ovveride the github branch name that will be displayed in alpaka'
+        description: 'Can be used to override the Git branch name that will be displayed in Alpaka'
       git-sha:
         required: false
         type: string
         default: ${{ github.sha }}
-        description: 'can be used to ovveride the github commit hash that will be displayed in alpaka'
+        description: 'Can be used to override the Git commit hash that will be displayed in Alpaka'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
