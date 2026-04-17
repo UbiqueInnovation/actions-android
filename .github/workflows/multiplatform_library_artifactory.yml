@@ -84,9 +84,6 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.0.1
-
       # Run the Gradle publish task
       - name: Build and publish artifact
         run: |

@@ -238,11 +238,6 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
         if: ${{ inputs.setup-rust-tool-chain }}
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.0.1
-        with:
-          cache-disabled: true
-
       # Build and upload app to Alpaka
       - name: Build app
         run: |

@@ -103,11 +103,6 @@ jobs:
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.0.1
-        with:
-          cache-disabled: true
-
       - name: Run Gradle task
         run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }}
         env:

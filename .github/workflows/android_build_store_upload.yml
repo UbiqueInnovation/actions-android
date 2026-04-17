@@ -106,10 +106,6 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
         if: ${{ inputs.setup-rust-tool-chain }}
 
-      # Setup gradle
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.0.1
-
       # Build the app
       - name: Build app
         run: |

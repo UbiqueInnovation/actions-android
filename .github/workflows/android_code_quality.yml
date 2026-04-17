@@ -175,11 +175,6 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
         if: ${{ inputs.setup-rust-tool-chain }}
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.0.1
-        with:
-          cache-disabled: true
-
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
@@ -263,11 +258,6 @@ jobs:
           key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             cimg-android-${{ inputs.projectKey }}-gradle-
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.0.1
-        with:
-          cache-disabled: true
 
       # Run Coeus
       - name: Assemble the APK for static code analysis
