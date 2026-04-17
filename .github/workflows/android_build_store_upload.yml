@@ -94,6 +94,12 @@ jobs:
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
           echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
 
+          buildId=$(cat /proc/sys/kernel/random/uuid)
+          echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
+          buildNumber=${{ github.run_number }}
+          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
+          echo "build_batch=release${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
       # Setup JDK environment
       - name: Set up JDK
         uses: actions/setup-java@v5.2.0
@@ -114,6 +120,11 @@ jobs:
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
+            -Pbuild_id=${{ steps.vars.outputs.build_id }} \
+            -Pbuild_number=${{ steps.vars.outputs.build_number }} \
+            -Pbuild_batch=${{ steps.vars.outputs.build_batch }} \
+            -Pbranch=${{ github.ref_name }} \
+            -PcommitHash=${{ github.sha }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
