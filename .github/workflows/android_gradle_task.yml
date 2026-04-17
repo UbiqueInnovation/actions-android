@@ -6,32 +6,32 @@ on:
       task:
         type: string
         required: true
-      gradleArgs:
+      gradle-args:
         type: string
         required: false
-      concurrencyGroup:
+      concurrency-group:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
-      workingDirectory:
+      working-directory:
         type: string
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      self_hosted_cache_endpoint:
+      self-hosted-cache-endpoint:
         required: false
         default: 'truenas.local.lan'
         type: string
         description: Should be set for selfhosted builds, but build won't fail without it
-      self_hosted_cache_port:
+      self-hosted-cache-port:
         required: false
         default: 9001
         type: number
-      self_hosted_cache_bucket:
+      self-hosted-cache-bucket:
         required: false
         default: github-actions-cache
         type: string
-      self_hosted_cache_region:
+      self-hosted-cache-region:
         required: false
         default: local
         type: string
@@ -39,11 +39,16 @@ on:
         type: string
         required: false
         default: '["k8s-runner"]'
-      android_image_version:
+      android-image-version:
         type: string
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       UB_ARTIFACTORY_URL:
         required: true
@@ -63,17 +68,19 @@ jobs:
   task:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     defaults:
       run:
-        working-directory: ${{ inputs.workingDirectory }}
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for the configured concurrency group
-      group: ${{ inputs.concurrencyGroup }}
+      group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4.1.1
+        with:
+          lfs: ${{ inputs.use-git-lfs }}
       - name: Install zstd
         run: sudo apt-get install -y zstd
 
@@ -81,13 +88,13 @@ jobs:
         uses: tespkg/actions-cache@v1.7.1
         if: false # Disabled for now to test if it's faster without it
         with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
+          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
+          port: ${{ inputs.self-hosted-cache-port }}
           insecure: true
           accessKey: ${{ secrets.self_hosted_cache_access_key }}
           secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
+          bucket: ${{ inputs.self-hosted-cache-bucket }}
+          region: ${{ inputs.self-hosted-cache-region }}
           use-fallback: true
           path: |
             ~/.gradle/caches
@@ -107,4 +114,4 @@ jobs:
         with:
           cache-disabled: true
           build-root-directory: './'
-          arguments: ${{ inputs.task }} ${{ inputs.gradleArgs }}
+          arguments: ${{ inputs.task }} ${{ inputs.gradle-args }}

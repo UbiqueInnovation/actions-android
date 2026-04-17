@@ -6,11 +6,12 @@ on:
       flavor:
         type: string
         required: true
-      appModule:
+      app-module:
         type: string
         required: false
         default: 'app'
-      setup_rust_tool_chain:
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
+      setup-rust-tool-chain:
         required: false
         default: false
         type: boolean
@@ -22,17 +23,22 @@ on:
         type: string
         required: false
         default: '17'
-        description: The JDK version to use. Default is 17.
-      android_image_version:
+        description: 'The JDK version to use. Default is 17.'
+      android-image-version:
         type: string
         required: false
         default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
-      sentry_log_level:
+        description: 'The Android image version to use. Default is 2024.04.1-ndk.'
+      sentry-log-level:
         type: string
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      use-git-lfs:
+        type: boolean
+        required: false
+        default: false
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -60,12 +66,14 @@ jobs:
     name: Build ${{ inputs.flavor }} Flavor
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.appModule }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app-module }}
       cancel-in-progress: true
+    env:
+      AAB_STAGING_DIR: .tmp/publishing_aab
     steps:
       # Checkout repository and submodules
       - name: Checkout
@@ -73,7 +81,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -81,7 +89,10 @@ jobs:
         shell: bash
         run: |
           flavor=${{ inputs.flavor }}
+          appModulePath=${{ inputs.app-module }}
+          appModulePath=${appModulePath//:/\/}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
 
       # Setup JDK environment
       - name: Set up JDK
@@ -93,14 +104,14 @@ jobs:
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-        if: ${{ inputs.setup_rust_tool_chain }}
+        if: ${{ inputs.setup-rust-tool-chain }}
 
-      # Setup the build environment with Gradle
+      # Setup gradle and build the app
       - name: Build app
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: |
-            :${{ inputs.appModule }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload
+            :${{ inputs.app-module }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -110,20 +121,29 @@ jobs:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
+          SENTRY_LOG_LEVEL: ${{ inputs.sentry-log-level }}
 
+      # Copy the app to a temporary folder because the publish step clears the default aab output folder
+      - name: Stage AAB
+        run: |
+          mkdir -p "$AAB_STAGING_DIR"
+          cp "${{ steps.vars.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
+
+      # Upload the .aab artifact
       - name: Save app artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-bundle
           path: |
-            **/${{ inputs.appModule }}/build/outputs/**/*.aab
+            ${{ env.AAB_STAGING_DIR }}/*.aab
 
+      # Publish the .aab to the play store
       - name: Upload app artifact
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
           arguments: |
-            :${{ inputs.appModule }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle --artifact-dir ${{ inputs.appModule }}/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload
+            :${{ inputs.app-module }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
+            --artifact-dir ${{ env.AAB_STAGING_DIR }}
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
@@ -132,4 +152,4 @@ jobs:
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
+          SENTRY_LOG_LEVEL: ${{ inputs.sentry-log-level }}

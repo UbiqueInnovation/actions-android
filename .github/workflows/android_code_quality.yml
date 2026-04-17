@@ -6,44 +6,45 @@ on:
       flavor:
         type: string
         required: true
-      appModule:
+      app-module:
         type: string
         required: false
         default: 'app'
-      runCoeus:
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
+      run-coeus:
         type: boolean
         required: false
         default: false
-      skipRules:
+      skip-rules:
         type: string
         required: false
         default: ''
-      runTests:
+      run-tests:
         type: boolean
         required: false
         default: false
-      runLint:
+      run-lint:
         type: boolean
         required: false
         default: true
-      runSonarqube:
+      run-sonarqube:
         type: boolean
         required: false
         default: false
-      self_hosted_cache_endpoint:
+      self-hosted-cache-endpoint:
         required: false
         default: 'truenas.local.lan'
         type: string
         description: Should be set for selfhosted builds, but build won't fail without it
-      self_hosted_cache_port:
+      self-hosted-cache-port:
         required: false
         default: 9001
         type: number
-      self_hosted_cache_bucket:
+      self-hosted-cache-bucket:
         required: false
         default: github-actions-cache
         type: string
-      self_hosted_cache_region:
+      self-hosted-cache-region:
         required: false
         default: local
         type: string
@@ -51,15 +52,20 @@ on:
         type: string
         required: false
         default: '["k8s-runner"]'
-      android_image_version:
+      android-image-version:
         type: string
         required: false
         default: '2024.04.1-ndk'
         description: The Android image version to use. Default is 2024.04.1-ndk.
-      setup_rust_tool_chain:
+      setup-rust-tool-chain:
         required: false
         default: false
         type: boolean
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -75,13 +81,13 @@ on:
         required: true
       ACR_REGISTRY:
         required: false
-        description: Required if runCoeus is true
+        description: Required if run-coeus is true
       ACR_USERNAME:
         required: false
-        description: Required if runCoeus is true
+        description: Required if run-coeus is true
       ACR_PASSWORD:
         required: false
-        description: Required if runCoeus is true
+        description: Required if run-coeus is true
       ADDITIONAL_GRADLE_PROPS:
         required: false
       SENTRY_AUTH_TOKEN:
@@ -97,7 +103,7 @@ jobs:
     name: Run code quality checks
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow and git ref
@@ -110,7 +116,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -118,7 +124,10 @@ jobs:
         shell: bash
         run: |
           export flavor=${{ inputs.flavor }}
+          appModulePath=${{ inputs.app-module }}
+          appModulePath=${appModulePath//:/\/}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
@@ -130,13 +139,13 @@ jobs:
         uses: tespkg/actions-cache@v1.7.1
         if: false # Disabled for now to test if it's faster without it
         with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
+          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
+          port: ${{ inputs.self-hosted-cache-port }}
           insecure: true
           accessKey: ${{ secrets.self_hosted_cache_access_key }}
           secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
+          bucket: ${{ inputs.self-hosted-cache-bucket }}
+          region: ${{ inputs.self-hosted-cache-region }}
           use-fallback: true
           path: |
             ~/.gradle/caches
@@ -146,16 +155,16 @@ jobs:
             cimg-android-${{ inputs.projectKey }}-gradle-
 
       - name: Cache SonarCloud packages on selfhosted MinIO
-        if: ${{ fromJSON(inputs.runSonarqube) && false }} # Disabled for now to test if it's faster without it
+        if: ${{ fromJSON(inputs.run-sonarqube) && false }} # Disabled for now to test if it's faster without it
         uses: tespkg/actions-cache@v1.7.1
         with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
+          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
+          port: ${{ inputs.self-hosted-cache-port }}
           insecure: true
           accessKey: ${{ secrets.self_hosted_cache_access_key }}
           secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
+          bucket: ${{ inputs.self-hosted-cache-bucket }}
+          region: ${{ inputs.self-hosted-cache-region }}
           use-fallback: false
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -164,47 +173,47 @@ jobs:
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
         uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-        if: ${{ inputs.setup_rust_tool_chain }}
+        if: ${{ inputs.setup-rust-tool-chain }}
 
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
-        if: ${{ fromJSON(inputs.runTests) }}
+        if: ${{ fromJSON(inputs.run-tests) }}
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
-          arguments: :${{ inputs.appModule }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.app-module }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} --daemon
           cache-disabled: true
 
       # Run Android Lint checks
       - name: Run Lint
         id: lint
-        if: ${{ fromJSON(inputs.runLint) }}
+        if: ${{ fromJSON(inputs.run-lint) }}
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
-          arguments: :${{ inputs.appModule }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.app-module }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} --daemon
           cache-disabled: true
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
         id: sonarqube
-        if: ${{ fromJSON(inputs.runSonarqube) }}
+        if: ${{ fromJSON(inputs.run-sonarqube) }}
         uses: gradle/actions/setup-gradle@v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
         with:
-          arguments: :${{ inputs.appModule }}:sonar ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.app-module }}:sonar ${{ steps.vars.outputs.gradle_properties }} --daemon
           cache-disabled: true
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
-        if: ${{ fromJSON(inputs.runTests) && steps.tests.outcome == 'success' }}
+        if: ${{ fromJSON(inputs.run-tests) && steps.tests.outcome == 'success' }}
         uses: EnricoMi/publish-unit-test-result-action@v1.36
         with:
           check_name: 'Unit Test Results'
-          files: ${{ inputs.appModule }}/build/test-results/**/*.xml
+          files: ${{ steps.vars.outputs.app_module_path }}/build/test-results/**/*.xml
   coeus:
-    if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.runCoeus) }}
+    if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.run-coeus) }}
     name: Run coeus binary analysis
     runs-on: ['docker']
     container:
@@ -222,7 +231,7 @@ jobs:
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
@@ -230,7 +239,10 @@ jobs:
         shell: bash
         run: |
           export flavor=${{ inputs.flavor }}
+          appModulePath=${{ inputs.app-module }}
+          appModulePath=${appModulePath//:/\/}
           echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
           export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
@@ -241,13 +253,13 @@ jobs:
         uses: tespkg/actions-cache@v1.7.1
         if: false # Disabled for now to test if it's faster without it
         with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
+          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
+          port: ${{ inputs.self-hosted-cache-port }}
           insecure: true
           accessKey: ${{ secrets.self_hosted_cache_access_key }}
           secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
+          bucket: ${{ inputs.self-hosted-cache-bucket }}
+          region: ${{ inputs.self-hosted-cache-region }}
           use-fallback: true
           path: |
             ~/.gradle/caches
@@ -261,14 +273,14 @@ jobs:
         id: coeus-assemble
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
-          arguments: :${{ inputs.appModule }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
+          arguments: :${{ inputs.app-module }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} --daemon
           cache-disabled: true
       - name: Find APK and Mapping
         id: find-apk
         shell: bash
         run: |
-          export apk=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/apk/ -name '*.apk'`
-          export mapping=`find $GITHUB_WORKSPACE/${{ inputs.appModule }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          export apk=`find $GITHUB_WORKSPACE/${{ steps.vars.outputs.app_module_path }}/build/outputs/apk/ -name '*.apk'`
+          export mapping=`find $GITHUB_WORKSPACE/${{ steps.vars.outputs.app_module_path }}/build/outputs/mapping/ -name 'mapping.txt' || true`
           echo "apk=${apk//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
           echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
       - name: Docker login for Azure registry
@@ -285,7 +297,7 @@ jobs:
         # and https://github.community/t/set-output-truncates-multiline-strings/16852/
         # Don't fail CI here, print comment first.
         run: |
-          OUTPUT=`docker run -i -e SKIP_RULES="${{ inputs.skipRules }}" -v ${{ steps.find-apk.outputs.mapping }}:/home/coeus/mapping.txt -v ${{ steps.find-apk.outputs.apk }}:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
+          OUTPUT=`docker run -i -e SKIP_RULES="${{ inputs.skip-rules }}" -v ${{ steps.find-apk.outputs.mapping }}:/home/coeus/mapping.txt -v ${{ steps.find-apk.outputs.apk }}:/home/coeus/check-apk.apk ubique.azurecr.io/coeus-docker || true`
           echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
           echo "COEUS_OUTPUT<<EOF" >> $GITHUB_ENV
           echo "$OUTPUT" >> $GITHUB_ENV
