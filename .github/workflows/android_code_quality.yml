@@ -31,23 +31,6 @@ on:
         type: boolean
         required: false
         default: false
-      self-hosted-cache-endpoint:
-        required: false
-        default: 'truenas.local.lan'
-        type: string
-        description: Should be set for selfhosted builds, but build won't fail without it
-      self-hosted-cache-port:
-        required: false
-        default: 9001
-        type: number
-      self-hosted-cache-bucket:
-        required: false
-        default: github-actions-cache
-        type: string
-      self-hosted-cache-region:
-        required: false
-        default: local
-        type: string
       runs-on:
         type: string
         required: false
@@ -92,11 +75,6 @@ on:
         required: false
       SENTRY_AUTH_TOKEN:
         required: false
-      self_hosted_cache_access_key:
-        required: false
-        description: Must be set to use selfhosted cache
-      self_hosted_cache_secret_key:
-        required: false
 
 jobs:
   code_quality:
@@ -134,41 +112,6 @@ jobs:
       # Setup JDK environment
       - name: Install zstd
         run: sudo apt-get install -y zstd
-
-      - name: Cache Gradle packages on self-hosted MinIO
-        uses: tespkg/actions-cache@v1.7.1
-        if: false # Disabled for now to test if it's faster without it
-        with:
-          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
-          port: ${{ inputs.self-hosted-cache-port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self-hosted-cache-bucket }}
-          region: ${{ inputs.self-hosted-cache-region }}
-          use-fallback: true
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            cimg-android-${{ inputs.projectKey }}-gradle-
-
-      - name: Cache SonarCloud packages on selfhosted MinIO
-        if: ${{ fromJSON(inputs.run-sonarqube) && false }} # Disabled for now to test if it's faster without it
-        uses: tespkg/actions-cache@v1.7.1
-        with:
-          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
-          port: ${{ inputs.self-hosted-cache-port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self-hosted-cache-bucket }}
-          region: ${{ inputs.self-hosted-cache-region }}
-          use-fallback: false
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
@@ -239,25 +182,6 @@ jobs:
 
       - name: Install zstd
         run: sudo apt-get install -y zstd
-
-      - name: Cache Gradle packages on self-hosted MinIO
-        uses: tespkg/actions-cache@v1.7.1
-        if: false # Disabled for now to test if it's faster without it
-        with:
-          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
-          port: ${{ inputs.self-hosted-cache-port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self-hosted-cache-bucket }}
-          region: ${{ inputs.self-hosted-cache-region }}
-          use-fallback: true
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            cimg-android-${{ inputs.projectKey }}-gradle-
 
       # Run Coeus
       - name: Assemble the APK for static code analysis

@@ -29,23 +29,6 @@ on:
         type: string
         required: false
         default: ${{ github.repository }}
-      self-hosted-cache-endpoint:
-        required: false
-        default: 'truenas.local.lan'
-        type: string
-        description: Should be set for selfhosted builds, but build won't fail without it
-      self-hosted-cache-port:
-        required: false
-        default: 9001
-        type: number
-      self-hosted-cache-bucket:
-        required: false
-        default: github-actions-cache
-        type: string
-      self-hosted-cache-region:
-        required: false
-        default: local
-        type: string
       setup-rust-tool-chain:
         required: false
         default: false
@@ -107,11 +90,6 @@ on:
         required: false
       SSH_KEY:
         description: 'SSH key to import'
-        required: false
-      self_hosted_cache_access_key:
-        required: false
-        description: Must be set to use selfhosted cache
-      self_hosted_cache_secret_key:
         required: false
 
 jobs:
@@ -213,25 +191,6 @@ jobs:
 
       - name: Install zstd
         run: sudo apt-get install -y zstd
-
-      - name: Cache Gradle packages on self-hosted MinIO
-        uses: tespkg/actions-cache@v1.7.1
-        if: false # Disabled for now to test if it's faster without it
-        with:
-          endpoint: ${{ inputs.self-hosted-cache-endpoint }}
-          port: ${{ inputs.self-hosted-cache-port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self-hosted-cache-bucket }}
-          region: ${{ inputs.self-hosted-cache-region }}
-          use-fallback: true
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.cache-key-prefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            cimg-android-${{ inputs.cache-key-prefix }}-gradle-
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
