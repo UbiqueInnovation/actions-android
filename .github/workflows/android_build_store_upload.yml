@@ -133,11 +133,11 @@ jobs:
 
       # Upload the .aab artifact
       - name: Save app artifact
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: app-bundle
-          path: |
-            ${{ env.AAB_STAGING_DIR }}/*.aab
+          path: ${{ env.AAB_STAGING_DIR }}/*.aab
+          compression-level: 0
 
       # Publish the .aab to the play store
       - name: Upload app artifact

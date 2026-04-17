@@ -198,9 +198,10 @@ jobs:
         run: echo "${{ steps.vars.outputs.build_id }}" > build_id.txt
 
       - name: upload build_id as artifact
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ inputs.flavor }}_build_id
+          compression-level: 0
           path: ${{ inputs.working-directory }}/build_id.txt
 
       # Setup JDK environment
