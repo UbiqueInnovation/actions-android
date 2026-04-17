@@ -26,8 +26,8 @@ on:
       jdk:
         type: string
         required: false
-        default: '17'
-        description: The JDK version to use. Default is 17.
+        default: '21'
+        description: The JDK version to use. Default is 21.
       use-git-lfs:
         required: false
         default: false
@@ -59,7 +59,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -67,7 +67,7 @@ jobs:
 
       # Setup JDK environment
       - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
+        uses: actions/setup-java@v5.2.0
         with:
           distribution: 'zulu'
           java-version: ${{ inputs.jdk }}
@@ -86,13 +86,10 @@ jobs:
 
       # Run the Gradle publish task
       - name: Build and publish artifact
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          build-root-directory: ${{ inputs.working-directory }}
-          arguments: |
-            :${{ inputs.lib-module }}:publish
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
+        run: |
+          ./gradlew :${{ inputs.lib-module }}:publish \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
         env:
           UB_ARTIFACTORY_URL_ANDROID: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}

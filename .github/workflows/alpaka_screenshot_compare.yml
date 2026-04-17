@@ -13,8 +13,8 @@ on:
       android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
       use-git-lfs:
         required: false
         default: false
@@ -35,13 +35,13 @@ jobs:
       pull-requests: write
     steps:
       - name: Ensure GH CLI
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
       - run: sudo apt-get install -y gh
 
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'

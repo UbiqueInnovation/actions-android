@@ -22,13 +22,13 @@ on:
       jdk:
         type: string
         required: false
-        default: '17'
-        description: 'The JDK version to use. Default is 17.'
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
       android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: 'The Android image version to use. Default is 2024.04.1-ndk.'
+        default: '2026.03.1-ndk'
+        description: 'The Android image version to use. Default is 2026.03.1-ndk.'
       sentry-log-level:
         type: string
         required: false
@@ -77,7 +77,7 @@ jobs:
     steps:
       # Checkout repository and submodules
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
@@ -96,26 +96,24 @@ jobs:
 
       # Setup JDK environment
       - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
+        uses: actions/setup-java@v5.2.0
         with:
           distribution: 'zulu'
           java-version: ${{ inputs.jdk }}
 
       # Setup rust Tool Chain
       - name: Setup rust Tool Chain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
         if: ${{ inputs.setup-rust-tool-chain }}
 
-      # Setup gradle and build the app
+      # Build the app
       - name: Build app
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: |
-            :${{ inputs.app-module }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
-            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+        run: |
+          ./gradlew :${{ inputs.app-module }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
@@ -131,23 +129,21 @@ jobs:
 
       # Upload the .aab artifact
       - name: Save app artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: app-bundle
-          path: |
-            ${{ env.AAB_STAGING_DIR }}/*.aab
+          path: ${{ env.AAB_STAGING_DIR }}/*.aab
+          compression-level: 0
 
       # Publish the .aab to the play store
       - name: Upload app artifact
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          arguments: |
-            :${{ inputs.app-module }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle
-            --artifact-dir ${{ env.AAB_STAGING_DIR }}
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
-            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+        run: |
+          ./gradlew :${{ inputs.app-module }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle \
+            --artifact-dir "$AAB_STAGING_DIR" \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
