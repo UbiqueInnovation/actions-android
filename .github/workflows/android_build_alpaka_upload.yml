@@ -264,6 +264,8 @@ jobs:
       - name: Alpaka Build Summary
         run: |
           echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
-          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
-          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
-          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
+          echo '| | |' >> $GITHUB_STEP_SUMMARY
+          echo '|---|---|' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Batch | ${{ steps.vars.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build ID | ${{ steps.vars.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Number | ${{ steps.vars.outputs.build_number }} |' >> $GITHUB_STEP_SUMMARY
