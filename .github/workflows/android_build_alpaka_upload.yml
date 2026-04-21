@@ -25,10 +25,6 @@ on:
         default: ''
         required: false
         description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
-      cache-key-prefix:
-        type: string
-        required: false
-        default: ${{ github.repository }}
       setup-rust-tool-chain:
         required: false
         default: false
