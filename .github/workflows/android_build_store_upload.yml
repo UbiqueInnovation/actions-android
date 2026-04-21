@@ -116,7 +116,7 @@ jobs:
       - name: Build app
         run: |
           ./gradlew :${{ inputs.app-module }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload \
-            ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }} \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
@@ -151,7 +151,7 @@ jobs:
       - name: Upload app artifact
         run: |
           ./gradlew :${{ inputs.app-module }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle \
-            ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }} \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             --artifact-dir "$AAB_STAGING_DIR" \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \

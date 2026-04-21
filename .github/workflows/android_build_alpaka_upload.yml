@@ -204,7 +204,7 @@ jobs:
             cd "${{ inputs.working-directory-suffix }}"
           fi
           ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assembleAndPublishToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release \
-            ${{ github.run_attempt > 1 && '--stacktrace --debug' || '' }} \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
