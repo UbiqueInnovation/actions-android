@@ -33,6 +33,9 @@ on:
         type: boolean
         description: 'Use git lfs during repository checkout'
     secrets:
+      ANDROID_JENKINS_PAT:
+        required: false
+        description: 'Optional PAT for checking out private repositories or submodules. Falls back to the default GITHUB_TOKEN if not set.'
       UB_ARTIFACTORY_URL:
         required: true
       UB_ARTIFACTORY_REPO_ANDROID:
@@ -56,11 +59,12 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Setup Android environment
+        uses: ./.github/actions/android-base-setup
         with:
-          lfs: ${{ inputs.use-git-lfs }}
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          setup-jdk: 'false'
 
       - name: Run Gradle task
         run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }}

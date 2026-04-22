@@ -75,55 +75,29 @@ jobs:
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - name: Setup Android app build environment
+        id: setup
+        uses: ./.github/actions/android-app-setup
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: ${{ inputs.use-git-lfs }}
-
-      # Set build variables for reuse in multiple steps
-      - name: Set Build Variables
-        id: vars
-        shell: bash
-        run: |
-          flavor=${{ inputs.flavor }}
-          appModulePath=${{ inputs.app-module }}
-          appModulePath=${appModulePath//:/\/}
-          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
-
-          buildId=$(cat /proc/sys/kernel/random/uuid)
-          echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
-          buildNumber=${{ github.run_number }}
-          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
-          echo "build_batch=release${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: 'zulu'
-          java-version: ${{ inputs.jdk }}
-
-      # Setup rust Tool Chain
-      - name: Setup rust Tool Chain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
-        if: ${{ inputs.setup-rust-tool-chain }}
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust-tool-chain }}
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
 
       # Build the app
       - name: Build app
         run: |
-          ./gradlew :${{ inputs.app-module }}:bundle${{ steps.vars.outputs.flavor_capitalized }}ReleaseUpload \
+          ./gradlew :${{ inputs.app-module }}:bundle${{ steps.setup.outputs.flavor_capitalized }}ReleaseUpload \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
-            -Pbuild_id=${{ steps.vars.outputs.build_id }} \
-            -Pbuild_number=${{ steps.vars.outputs.build_number }} \
-            -Pbuild_batch=${{ steps.vars.outputs.build_batch }} \
+            -Pbuild_id=${{ steps.setup.outputs.build_id }} \
+            -Pbuild_number=${{ steps.setup.outputs.build_number }} \
+            -Pbuild_batch=${{ steps.setup.outputs.build_batch }} \
             -Pbranch=${{ github.ref_name }} \
             -PcommitHash=${{ github.sha }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
@@ -137,7 +111,7 @@ jobs:
       - name: Stage AAB
         run: |
           mkdir -p "$AAB_STAGING_DIR"
-          cp "${{ steps.vars.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
+          cp "${{ steps.setup.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
 
       # Upload the .aab artifact
       - name: Save app artifact
@@ -150,7 +124,7 @@ jobs:
       # Publish the .aab to the play store
       - name: Upload app artifact
         run: |
-          ./gradlew :${{ inputs.app-module }}:publish${{ steps.vars.outputs.flavor_capitalized }}ReleaseUploadBundle \
+          ./gradlew :${{ inputs.app-module }}:publish${{ steps.setup.outputs.flavor_capitalized }}ReleaseUploadBundle \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             --artifact-dir "$AAB_STAGING_DIR" \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
