@@ -74,6 +74,9 @@ jobs:
       cancel-in-progress: true
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
+    outputs:
+      flavor_capitalized: ${{ steps.setup.outputs.flavor_capitalized }}
+      app_module_path: ${{ steps.setup.outputs.app_module_path }}
     steps:
       - name: Setup Android app build environment
         id: setup
@@ -113,7 +116,7 @@ jobs:
           mkdir -p "$AAB_STAGING_DIR"
           cp "${{ steps.setup.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
 
-      # Upload the .aab artifact
+      # Upload the .aab artifact so the upload job (and humans) can download it
       - name: Save app artifact
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -121,10 +124,34 @@ jobs:
           path: ${{ env.AAB_STAGING_DIR }}/*.aab
           compression-level: 0
 
+  publish:
+    name: Publish ${{ inputs.flavor }} to Play Store
+    needs: build
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    container:
+      image: cimg/android:${{ inputs.android-image-version }}
+    timeout-minutes: 30
+    env:
+      AAB_STAGING_DIR: .tmp/publishing_aab
+    steps:
+      - name: Setup Android environment
+        uses: ./.github/actions/android-app-setup
+        with:
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          jdk: ${{ inputs.jdk }}
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
+
+      - name: Download app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-bundle
+          path: ${{ env.AAB_STAGING_DIR }}
+
       # Publish the .aab to the play store
       - name: Upload app artifact
         run: |
-          ./gradlew :${{ inputs.app-module }}:publish${{ steps.setup.outputs.flavor_capitalized }}ReleaseUploadBundle \
+          ./gradlew :${{ inputs.app-module }}:publish${{ needs.build.outputs.flavor_capitalized }}ReleaseUploadBundle \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             --artifact-dir "$AAB_STAGING_DIR" \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
