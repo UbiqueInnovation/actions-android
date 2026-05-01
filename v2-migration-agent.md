@@ -119,7 +119,26 @@ Based on the answer to Q3:
 - **Accept new default**: remove any existing `android_image_version:` or `android-image-version:` line. Do not add one.
 - **Pin a version**: rename `android_image_version` to `android-image-version` (already covered by 3b) and ensure the value is set to the pinned version string. If the key was absent, add `android-image-version: '<value>'` to the `with:` block.
 
-### 3f — Handle use-git-lfs input
+### 3f — Add `workflow_dispatch` trigger if missing
+
+Check the `on:` block of each caller workflow file. If `workflow_dispatch` is not already listed as a trigger, add it. Preserve all existing triggers unchanged.
+
+```yaml
+# before
+on:
+  push:
+    branches:
+      - main
+
+# after
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+```
+
+### 3g — Handle use-git-lfs input
 
 Based on the answer to Q1:
 - **No**: do nothing (the input is absent; it defaults to `false` in the workflow).
