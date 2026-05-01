@@ -32,6 +32,11 @@ on:
         default: false
         type: boolean
         description: 'Use git lfs during repository checkout'
+      jdk:
+        type: string
+        required: false
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
     secrets:
       ANDROID_JENKINS_PAT:
         required: false
@@ -64,7 +69,8 @@ jobs:
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
-          setup-jdk: 'false'
+          jdk: ${{ inputs.jdk }}
+          setup-rust: 'false'
 
       - name: Run Gradle task
         run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }}

@@ -1,23 +1,21 @@
 name: Setup Android Environment
 description: >
   Base setup for Android CI jobs. Checks out the repository, installs zstd,
-  optionally sets up a JDK, and optionally sets up the Rust toolchain.
-  All inputs must be supplied by the caller — defaults live in the workflow files.
+  sets up a JDK, and optionally sets up the Rust toolchain.
 
 inputs:
   checkout-token:
-    description: 'Token used for checkout. Falls back to the default GITHUB_TOKEN if not set.'
-    default: ${{ github.token }}
+    description: 'Token used for checkout.'
+    required: true
   use-git-lfs:
     description: 'Use git lfs during repository checkout.'
-  fetch-depth:
-    description: 'Number of commits to fetch during checkout.'
-  setup-jdk:
-    description: 'Whether to set up a JDK.'
+    required: true
   jdk:
     description: 'The JDK version to use.'
+    required: true
   setup-rust:
     description: 'Whether to set up the Rust toolchain.'
+    required: true
 
 runs:
   using: composite
@@ -28,10 +26,9 @@ runs:
         token: ${{ inputs.checkout-token }}
         submodules: 'recursive'
         lfs: ${{ inputs.use-git-lfs }}
-        fetch-depth: ${{ inputs.fetch-depth }}
+        fetch-depth: 10
 
     - name: Set up JDK
-      if: ${{ inputs.setup-jdk != 'false' }}
       uses: actions/setup-java@v5.2.0
       with:
         distribution: 'zulu'

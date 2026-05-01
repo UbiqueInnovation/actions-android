@@ -25,7 +25,7 @@ on:
         default: ''
         required: false
         description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
-      setup-rust-tool-chain:
+      setup-rust:
         required: false
         default: false
         type: boolean
@@ -110,12 +110,14 @@ jobs:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
           jdk: ${{ inputs.jdk }}
-          setup-rust: ${{ inputs.setup-rust-tool-chain }}
+          setup-rust: ${{ inputs.setup-rust }}
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
 
       - name: Setup SSH
-        if: ${{ secrets.SSH_KEY != '' }}
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
         uses: ./.github/actions/ssh-setup
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}

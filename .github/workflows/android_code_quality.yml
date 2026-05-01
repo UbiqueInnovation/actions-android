@@ -40,10 +40,15 @@ on:
         required: false
         default: '2026.03.1-ndk'
         description: The Android image version to use. Default is 2026.03.1-ndk.
-      setup-rust-tool-chain:
+      setup-rust:
         required: false
         default: false
         type: boolean
+      jdk:
+        type: string
+        required: false
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
       use-git-lfs:
         required: false
         default: false
@@ -95,7 +100,7 @@ jobs:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
           jdk: ${{ inputs.jdk }}
-          setup-rust: ${{ inputs.setup-rust-tool-chain }}
+          setup-rust: ${{ inputs.setup-rust }}
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
 
@@ -156,7 +161,7 @@ jobs:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
           jdk: ${{ inputs.jdk }}
-          setup-rust: ${{ inputs.setup-rust-tool-chain }}
+          setup-rust: ${{ inputs.setup-rust }}
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
 

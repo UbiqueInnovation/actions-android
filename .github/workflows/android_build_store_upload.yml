@@ -11,7 +11,7 @@ on:
         required: false
         default: 'app'
         description: 'The gradle app module (e.g. custom "android:androidApp")'
-      setup-rust-tool-chain:
+      setup-rust:
         required: false
         default: false
         type: boolean
@@ -85,7 +85,7 @@ jobs:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
           jdk: ${{ inputs.jdk }}
-          setup-rust: ${{ inputs.setup-rust-tool-chain }}
+          setup-rust: ${{ inputs.setup-rust }}
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
 
@@ -100,7 +100,7 @@ jobs:
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
             -Pbuild_id=${{ steps.setup.outputs.build_id }} \
             -Pbuild_number=${{ steps.setup.outputs.build_number }} \
-            -Pbuild_batch=${{ steps.setup.outputs.build_batch }} \
+            -Pbuild_batch=release${{ steps.setup.outputs.build_batch }} \
             -Pbranch=${{ github.ref_name }} \
             -PcommitHash=${{ github.sha }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
@@ -138,7 +138,9 @@ jobs:
         uses: ./.github/actions/android-app-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
           jdk: ${{ inputs.jdk }}
+          setup-rust: false
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
 

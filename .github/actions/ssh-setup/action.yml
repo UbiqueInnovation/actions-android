@@ -17,10 +17,9 @@ runs:
         if [ -e "$HOME/.ssh" ] && [ ! -d "$HOME/.ssh" ]; then
           echo "~/.ssh exists but is not a directory. Deleting it..."
           rm -f "$HOME/.ssh"
-          echo "Removed ~/.ssh."
-        else
-          echo "~/.ssh is either a directory or does not exist. No action needed."
         fi
+        mkdir -p "$HOME/.ssh"
+        chmod 700 "$HOME/.ssh"
 
     - name: Add SSH Key
       uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387

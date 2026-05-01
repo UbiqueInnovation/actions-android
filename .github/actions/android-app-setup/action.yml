@@ -1,26 +1,25 @@
 name: Setup Android App Build
-description: >
-  Extended setup for Android app build jobs (Alpaka, Play Store, code quality).
-  Calls android-base-setup and then computes build variables derived from the
-  flavor and app module inputs.
-  All inputs must be supplied by the caller — defaults live in the workflow files.
+description: Extended setup for Android app build jobs.
 
 inputs:
   checkout-token:
-    description: 'Token used for checkout. Falls back to the default GITHUB_TOKEN if not set.'
-    default: ${{ github.token }}
+    description: 'Token used for checkout.'
+    required: true
   use-git-lfs:
     description: 'Use git lfs during repository checkout.'
-  fetch-depth:
-    description: 'Number of commits to fetch during checkout.'
+    required: true
   jdk:
     description: 'The JDK version to use.'
+    required: true
   setup-rust:
     description: 'Whether to set up the Rust toolchain.'
+    required: true
   flavor:
     description: 'The build flavor. Used to compute flavor_capitalized.'
+    required: true
   app-module:
     description: 'The Gradle app module (e.g. "app" or "android:androidApp").'
+    required: true
 
 outputs:
   flavor_capitalized:
@@ -47,7 +46,6 @@ runs:
       with:
         checkout-token: ${{ inputs.checkout-token }}
         use-git-lfs: ${{ inputs.use-git-lfs }}
-        fetch-depth: ${{ inputs.fetch-depth }}
         jdk: ${{ inputs.jdk }}
         setup-rust: ${{ inputs.setup-rust }}
 
