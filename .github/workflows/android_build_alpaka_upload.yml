@@ -103,9 +103,16 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
+      - name: Checkout actions-android
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .github/actions-android
+
       - name: Setup Android app build environment
         id: setup
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@feature/composite-actions
+        uses: ./.github/actions-android/.github/actions/android-app-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
@@ -118,7 +125,7 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
         if: ${{ env.SSH_KEY != '' }}
-        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@feature/composite-actions
+        uses: ./.github/actions-android/.github/actions/ssh-setup
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 

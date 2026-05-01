@@ -78,9 +78,16 @@ jobs:
       flavor_capitalized: ${{ steps.setup.outputs.flavor_capitalized }}
       app_module_path: ${{ steps.setup.outputs.app_module_path }}
     steps:
+      - name: Checkout actions-android
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .github/actions-android
+
       - name: Setup Android app build environment
         id: setup
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@feature/composite-actions
+        uses: ./.github/actions-android/.github/actions/android-app-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
@@ -134,8 +141,15 @@ jobs:
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
     steps:
+      - name: Checkout actions-android
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .github/actions-android
+
       - name: Setup Android environment
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@feature/composite-actions
+        uses: ./.github/actions-android/.github/actions/android-app-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}

@@ -64,8 +64,15 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
+      - name: Checkout actions-android
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .github/actions-android
+
       - name: Setup Android environment
-        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@feature/composite-actions
+        uses: ./.github/actions-android/.github/actions/android-base-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
           use-git-lfs: ${{ inputs.use-git-lfs }}

@@ -42,7 +42,7 @@ runs:
   using: composite
   steps:
     - name: Setup Android environment
-      uses: ./.github/actions/android-base-setup
+      uses: ./.github/actions-android/.github/actions/android-base-setup
       with:
         checkout-token: ${{ inputs.checkout-token }}
         use-git-lfs: ${{ inputs.use-git-lfs }}
