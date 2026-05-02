@@ -90,7 +90,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ inputs.flavor }} Flavor
+    name: Build flavor ${{ inputs.flavor }}
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
@@ -122,8 +122,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
-      # Run prebuild script
-      - name: "Pre Build Script"
+      - name: Pre Build Script
         if: ${{ inputs.pre-build-script }}
         run: ${{ inputs.pre-build-script }}
 
@@ -164,8 +163,7 @@ jobs:
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
         run: |
-          echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
-          echo '| | |' >> $GITHUB_STEP_SUMMARY
+          echo '| **Alpaka Build Info** | |' >> $GITHUB_STEP_SUMMARY
           echo '|---|---|' >> $GITHUB_STEP_SUMMARY
           echo '| Build Batch | ${{ steps.setup.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
           echo '| Build ID | ${{ steps.setup.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
