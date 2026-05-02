@@ -119,7 +119,20 @@ Based on the answer to Q3:
 - **Accept new default**: remove any existing `android_image_version:` or `android-image-version:` line. Do not add one.
 - **Pin a version**: rename `android_image_version` to `android-image-version` (already covered by 3b) and ensure the value is set to the pinned version string. If the key was absent, add `android-image-version: '<value>'` to the `with:` block.
 
-### 3f — Add `workflow_dispatch` trigger if missing
+### 3f — Handle use-git-lfs input
+
+Based on the answer to Q1:
+- **No**: do nothing (the input is absent; it defaults to `false` in the workflow).
+- **Yes**: add `use-git-lfs: true` to the `with:` block of every job that calls any of these workflows:
+  - `alpaka_screenshot_compare.yml`
+  - `android_build_alpaka_upload.yml`
+  - `android_build_store_upload.yml`
+  - `android_code_quality.yml`
+  - `android_gradle_task.yml`
+  - `android_library_artifactory.yml`
+  - `multiplatform_library_artifactory.yml`
+
+### 3g — Add `workflow_dispatch` trigger if missing
 
 Check the `on:` block of each caller workflow file. If `workflow_dispatch` is not already listed as a trigger, add it. Preserve all existing triggers unchanged.
 
@@ -138,18 +151,33 @@ on:
   workflow_dispatch:
 ```
 
-### 3g — Handle use-git-lfs input
+### 3h — Rename workflow name
 
-Based on the answer to Q1:
-- **No**: do nothing (the input is absent; it defaults to `false` in the workflow).
-- **Yes**: add `use-git-lfs: true` to the `with:` block of every job that calls any of these workflows:
-  - `alpaka_screenshot_compare.yml`
-  - `android_build_alpaka_upload.yml`
-  - `android_build_store_upload.yml`
-  - `android_code_quality.yml`
-  - `android_gradle_task.yml`
-  - `android_library_artifactory.yml`
-  - `multiplatform_library_artifactory.yml`
+For each file, rename the workflow's top-level `name:` based on which reusable workflow it calls:
+
+| Reusable workflow called | New workflow name |
+|---|---|
+| `android_build_store_upload.yml` | "Play Store Upload" |
+| `android_build_alpaka_upload.yml` | "Alpaka Build" |
+| `android_code_quality.yml` | "Code Quality" |
+
+Preserve any existing tags or platform specifications in the name (e.g., "Android", "(tag)", etc.).
+
+```yaml
+# before
+name: Android - Build and Upload to Play Store
+
+# after (when the workflow calls android_build_store_upload.yml)
+name: Android - Play Store Upload
+
+# before
+name: (release) Build
+
+# after
+name: (release) Play Store Upload
+```
+
+Only change the workflow name; do not modify job names.
 
 ---
 
