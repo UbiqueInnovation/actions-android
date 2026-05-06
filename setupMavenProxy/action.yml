@@ -1,0 +1,50 @@
+name: Setup Ubique Maven Proxy
+description: Installs a Gradle init script that adds the Ubique public Maven proxy to all projects and plugins
+
+inputs:
+  artifactory-url:
+    description: Artifactory URL (with /android suffix, which will be replaced with /remote-merged-maven)
+    required: true
+  artifactory-username:
+    description: Artifactory username for Maven proxy authentication
+    required: true
+  artifactory-password:
+    description: Artifactory password for Maven proxy authentication
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Gradle init script for Maven proxy
+      shell: bash
+      env:
+        ARTIFACTORY_URL: ${{ inputs.artifactory-url }}
+        ARTIFACTORY_USERNAME: ${{ inputs.artifactory-username }}
+        ARTIFACTORY_PASSWORD: ${{ inputs.artifactory-password }}
+      run: |
+        mkdir -p ~/.gradle/init.d
+        PROXY_URL=$(echo "$ARTIFACTORY_URL" | sed 's|/android|/remote-merged-maven|')
+        cat > ~/.gradle/init.d/ubique-maven-proxy.gradle << EOF
+        def proxy = { repo ->
+            repo.maven {
+                url = "${PROXY_URL}"
+                credentials {
+                    username = '${ARTIFACTORY_USERNAME}'
+                    password = '${ARTIFACTORY_PASSWORD}'
+                }
+                authentication {
+                    basic(BasicAuthentication)
+                    digest(DigestAuthentication)
+                }
+            }
+        }
+        beforeSettings { settings ->
+            settings.pluginManagement {
+                repositories { proxy(delegate) }
+            }
+            settings.dependencyResolutionManagement {
+                repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+                repositories { proxy(delegate) }
+            }
+        }
+        EOF

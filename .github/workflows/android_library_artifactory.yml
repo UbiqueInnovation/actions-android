@@ -60,6 +60,13 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
+      - name: Setup Ubique Maven Proxy
+        uses: UbiqueInnovation/actions-android/setupMavenProxy@feature/maven-proxy
+        with:
+          artifactory-url: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+          artifactory-username: ${{ secrets.UB_ARTIFACTORY_USER }}
+          artifactory-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+
       # Setup JDK environment
       - name: Set up JDK
         uses: actions/setup-java@v4.2.1

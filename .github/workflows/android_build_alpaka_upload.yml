@@ -132,6 +132,13 @@ jobs:
           lfs: 'true'
           fetch-depth: 10
 
+      - name: Setup Ubique Maven Proxy
+        uses: UbiqueInnovation/actions-android/setupMavenProxy@feature/maven-proxy
+        with:
+          artifactory-url: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+          artifactory-username: ${{ secrets.UB_ARTIFACTORY_USER }}
+          artifactory-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+
       - name: Ensure ~/.ssh is a directory
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
