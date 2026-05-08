@@ -86,7 +86,7 @@ jobs:
       - name: Setup Gradle Cache
         uses: UbiqueInnovation/actions-android/setupGradleCache@feature/gradle-cache
         with:
-          job-id: '17'
+          job-id: 17-${{ inputs.task }}
 
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1

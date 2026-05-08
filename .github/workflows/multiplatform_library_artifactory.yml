@@ -77,7 +77,7 @@ jobs:
       - name: Setup Gradle Cache
         uses: UbiqueInnovation/actions-android/setupGradleCache@feature/gradle-cache
         with:
-          job-id: ${{ inputs.jdk }}
+          job-id: ${{ inputs.jdk }}-${{ inputs.libModule }}
 
       # Append version name suffix
       - name: Append version name suffix
