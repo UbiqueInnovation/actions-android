@@ -83,6 +83,11 @@ jobs:
       - name: Install zstd
         run: sudo apt-get install -y zstd
 
+      - name: Setup Gradle Cache
+        uses: UbiqueInnovation/actions-android/setupGradleCache@feature/gradle-cache
+        with:
+          job-id: '17'
+
       - name: Cache Gradle packages on self-hosted MinIO
         uses: tespkg/actions-cache@v1.7.1
         if: false # Disabled for now to test if it's faster without it

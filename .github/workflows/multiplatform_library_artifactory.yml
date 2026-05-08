@@ -74,6 +74,11 @@ jobs:
           distribution: 'zulu'
           java-version: ${{ inputs.jdk }}
 
+      - name: Setup Gradle Cache
+        uses: UbiqueInnovation/actions-android/setupGradleCache@feature/gradle-cache
+        with:
+          job-id: ${{ inputs.jdk }}
+
       # Append version name suffix
       - name: Append version name suffix
         id: version
@@ -90,6 +95,7 @@ jobs:
       - name: Build and publish artifact
         uses: gradle/actions/setup-gradle@v3.1.0
         with:
+          cache-disabled: true
           build-root-directory: ${{ inputs.workingDirectory }}
           arguments: |
             :${{ inputs.libModule }}:publish
