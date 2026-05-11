@@ -105,6 +105,7 @@ jobs:
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            -PreleaseBuild=true
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           UPLOAD_KEY_STORE_PASSWORD: ${{ secrets.UPLOAD_KEY_STORE_PASSWORD }}
@@ -128,6 +129,7 @@ jobs:
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
+            -PreleaseBuild=true
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}

@@ -248,6 +248,7 @@ jobs:
             -Pbuild_number=${{ steps.vars.outputs.build_number }}
             -Pbranch=${{ inputs.git_branch }}
             -PcommitHash=${{ inputs.git_sha }}
+            -PreleaseBuild=true
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
