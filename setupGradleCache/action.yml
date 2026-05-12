@@ -22,3 +22,4 @@ runs:
         save-maven-dependencies-cache: false
         save-local-build-cache: false
         concurrent: true
+        gradle-distribution-sha-256-sum-warning: false
