@@ -29,6 +29,25 @@ jobs:
       # secrets
 ```
 
+## Versioning
+
+All actions and reusable workflows are versioned using Semantic Versioning.
+
+- `v2` — floating, always points to the latest `v2.x.x` release
+- `v2.0.1` — immutable, pinned to that exact release
+
+Use whichever suits your stability needs:
+
+```yaml
+# Stays current within a major version (recommended for most)
+uses: UbiqueInnovation/actions-android/.github/workflows/example.yml@v2
+
+# Pinned to an exact release
+uses: UbiqueInnovation/actions-android/.github/workflows/example.yml@v2.0.1
+```
+ 
+Breaking changes are only introduced in new major versions (`v3`, etc.), so `@v2` will never receive a breaking update.
+
 ## Migration
 
 - [v2 Migration Guide](v2-migration.md) — human-readable summary of all breaking changes

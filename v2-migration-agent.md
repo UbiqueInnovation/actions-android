@@ -183,14 +183,14 @@ Only change the workflow name; do not modify job names.
 
 ## Step 4 — Update the `uses:` version pin
 
-For every discovered `uses:` line, update the ref to the newest v2 ref (check https://github.com/UbiqueInnovation/actions-android/tags for the newest v2 tag, or use `@v2.0.0` as a fallback). For example:
+For every discovered `uses:` line, update the ref to the v2 ref. For example:
 
 ```yaml
 # before
-uses: UbiqueInnovation/actions-android/.github/workflows/android_build_alpaka_upload.yml@v1
+uses: UbiqueInnovation/actions-android/.github/workflows/android_build_alpaka_upload.yml@v1.8
 
 # after
-uses: UbiqueInnovation/actions-android/.github/workflows/android_build_alpaka_upload.yml@v2.0.0
+uses: UbiqueInnovation/actions-android/.github/workflows/android_build_alpaka_upload.yml@v2
 ```
 
 ---
