@@ -61,7 +61,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Setup Android environment
-        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@feature/composite-actions
+        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}

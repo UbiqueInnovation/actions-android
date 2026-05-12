@@ -80,7 +80,7 @@ jobs:
     steps:
       - name: Setup Android app build environment
         id: setup
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@feature/composite-actions
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
@@ -135,7 +135,7 @@ jobs:
       AAB_STAGING_DIR: .tmp/publishing_aab
     steps:
       - name: Setup Android environment
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@feature/composite-actions
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
