@@ -121,12 +121,14 @@ jobs:
           cp "${{ steps.setup.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
 
       # Upload the .aab artifact so the upload job (and humans) can download it
-      - name: Save app artifact
+      - name: Stash app bundle
         uses: actions/upload-artifact@v7.0.1
         with:
           name: app-bundle
           path: ${{ env.AAB_STAGING_DIR }}/*.aab
-          compression-level: 0
+          compression-level: 1
+          retention-days: 7
+          if-no-files-found: error
 
   upload:
     name: Upload flavor ${{ inputs.flavor }} to Play Store
@@ -152,7 +154,7 @@ jobs:
           maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
 
-      - name: Download app bundle
+      - name: Unstash app bundle
         uses: actions/download-artifact@v4
         with:
           name: app-bundle
@@ -166,9 +168,6 @@ jobs:
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}
