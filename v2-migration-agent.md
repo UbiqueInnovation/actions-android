@@ -151,7 +151,23 @@ on:
   workflow_dispatch:
 ```
 
-### 3h — Rename workflow name
+### 3h — Remove top-level concurrency block
+
+If a workflow file calls `android_build_alpaka_upload.yml` or `android_build_store_upload.yml`, remove the entire top-level `concurrency:` block if present. These reusable workflows handle concurrency and cancellation internally, so a top-level concurrency setting is redundant and should not be carried over.
+
+```yaml
+# before
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# after
+# (block removed entirely)
+```
+
+Remove the block regardless of the exact `group:` expression or `cancel-in-progress:` value. Do not remove job-level `concurrency:` settings (inside a `jobs.<job-id>:` block) — only the top-level key.
+
+### 3i — Rename workflow name
 
 For each file, rename the workflow's top-level `name:` based on which reusable workflow it calls:
 
