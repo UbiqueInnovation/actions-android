@@ -63,7 +63,7 @@ on:
 
 jobs:
   build:
-    name: Build flavor ${{ inputs.flavor }}
+    name: Build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
@@ -131,7 +131,7 @@ jobs:
           if-no-files-found: error
 
   upload:
-    name: Upload flavor ${{ inputs.flavor }} to Play Store
+    name: Upload
     needs: build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
