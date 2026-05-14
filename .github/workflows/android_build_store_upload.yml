@@ -34,6 +34,11 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      working-directory:
+        type: string
+        default: './'
+        required: false
+        description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
       use-git-lfs:
         type: boolean
         required: false
@@ -67,6 +72,9 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
@@ -125,7 +133,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: app-bundle
-          path: ${{ env.AAB_STAGING_DIR }}/*.aab
+          path: ${{ inputs.working-directory }}${{ env.AAB_STAGING_DIR }}/*.aab
           compression-level: 1
           retention-days: 7
           if-no-files-found: error
@@ -136,6 +144,9 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 30
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
@@ -158,7 +169,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app-bundle
-          path: ${{ env.AAB_STAGING_DIR }}
+          path: ${{ inputs.working-directory }}${{ env.AAB_STAGING_DIR }}
 
       - name: Upload to Play Store
         run: |

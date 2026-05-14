@@ -164,8 +164,8 @@ jobs:
         with:
           name: ${{ inputs.flavor }}_app_outputs
           path: |
-            ${{ steps.setup.outputs.app_module_path }}/build/outputs/**
-            !${{ steps.setup.outputs.app_module_path }}/build/outputs/**/logs/**
+            ${{ inputs.working-directory }}${{ steps.setup.outputs.app_module_path }}/build/outputs/**
+            !${{ inputs.working-directory }}${{ steps.setup.outputs.app_module_path }}/build/outputs/**/logs/**
           compression-level: 6
           retention-days: 1
           if-no-files-found: error
@@ -215,7 +215,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.flavor }}_app_outputs
-          path: ${{ needs.build.outputs.app_module_path }}/build/outputs/
+          path: ${{ inputs.working-directory }}${{ needs.build.outputs.app_module_path }}/build/outputs/
 
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
