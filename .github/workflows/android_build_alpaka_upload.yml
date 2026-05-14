@@ -20,11 +20,6 @@ on:
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      working-directory-suffix:
-        type: string
-        default: ''
-        required: false
-        description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
       setup-rust:
         required: false
         default: false
@@ -148,9 +143,6 @@ jobs:
       - name: Build app
         shell: bash
         run: |
-          if [ -n "${{ inputs.working-directory-suffix }}" ]; then
-            cd "${{ inputs.working-directory-suffix }}"
-          fi
           ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor_capitalized }}Release \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
@@ -207,6 +199,18 @@ jobs:
           maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
 
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Pre Build Script
+        if: ${{ inputs.pre-build-script }}
+        run: ${{ inputs.pre-build-script }}
+
       - name: Unstash build output
         uses: actions/download-artifact@v4
         with:
@@ -225,9 +229,6 @@ jobs:
       - name: Upload app to Alpaka
         shell: bash
         run: |
-          if [ -n "${{ inputs.working-directory-suffix }}" ]; then
-            cd "${{ inputs.working-directory-suffix }}"
-          fi
           ./gradlew :${{ inputs.app-module }}:publishToAlpaka${{ needs.build.outputs.flavor_capitalized }}Release \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
