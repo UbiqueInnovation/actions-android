@@ -33,12 +33,14 @@ Ask **all** questions upfront in a single message. Do not start editing until yo
 > - If **yes**: `use-git-lfs: true` will be added to every workflow job.
 > - If **no**: the input will be omitted (it defaults to `false`).
 
-### Q2 — JDK version
+### Q2 — JDK version (only ask if the project does **not** already use JDK 21)
 
 > The default JDK has changed from **17 to 21**. Do you want to keep JDK 17 explicitly, or accept the new default of 21?
 >
 > - **Accept 21** (recommended): no `jdk:` input needed, remove any existing `jdk: '17'`.
 > - **Keep 17**: `jdk: '17'` will be set explicitly on every affected job.
+>
+> **Skip this question** if all affected jobs already specify `jdk: '21'` — treat the answer as "Accept 21" and remove the explicit `jdk: '21'` lines (since 21 is now the default).
 
 ### Q3 — Android image version
 
@@ -77,7 +79,6 @@ In every `with:` block under a matching `uses:`, apply these renames. Only renam
 | `appModule` | `app-module` |
 | `concurrencyGroup` | `concurrency-group` |
 | `workingDirectory` | `working-directory` |
-| `workingDirectorySuffix` | `working-directory-suffix` |
 | `gradleArgs` | `gradle-args` |
 | `libModule` | `lib-module` |
 | `versionNameSuffix` | `version-name-suffix` |
@@ -107,19 +108,32 @@ Remove the following keys from every `secrets:` block if present:
 - `self_hosted_cache_access_key`
 - `self_hosted_cache_secret_key`
 
-### 3d — Handle JDK input
+### 3d — Remove workingDirectorySuffix input
+
+If a `workingDirectorySuffix` key is present in a `with:` block:
+
+1. Remove the `workingDirectorySuffix` key from the `with:` block.
+2. If a `working-directory` key already exists in the same `with:` block, append the value of `workingDirectorySuffix` to it to form a path.
+3. If no `working-directory` key exists in the `with:` block, add one with the value of `workingDirectorySuffix`.
+4. If `workingDirectorySuffix` is not present, do nothing.
+
+### 3e — Ensure `working-directory` has a trailing slash
+
+If a `working-directory` key is present in a `with:` block (whether it was already there or was introduced in step 3d), check that its value ends with `/`. If it does not, append a `/`.
+
+### 3g — Handle JDK input
 
 Based on the answer to Q2:
 - **Accept 21**: remove any `jdk: '17'` line. Do not add a `jdk:` line.
 - **Keep 17**: if a `jdk:` key is already present, update its value to `'17'`. If it is absent from a job that supports it (all workflows except `alpaka_screenshot_compare` and `github_generate_manual_user_testcases`), add `jdk: '17'` to the `with:` block.
 
-### 3e — Handle android image version input
+### 3h — Handle android image version input
 
 Based on the answer to Q3:
 - **Accept new default**: remove any existing `android_image_version:` or `android-image-version:` line. Do not add one.
 - **Pin a version**: rename `android_image_version` to `android-image-version` (already covered by 3b) and ensure the value is set to the pinned version string. If the key was absent, add `android-image-version: '<value>'` to the `with:` block.
 
-### 3f — Handle use-git-lfs input
+### 3i — Handle use-git-lfs input
 
 Based on the answer to Q1:
 - **No**: do nothing (the input is absent; it defaults to `false` in the workflow).
@@ -132,7 +146,7 @@ Based on the answer to Q1:
   - `android_library_artifactory.yml`
   - `multiplatform_library_artifactory.yml`
 
-### 3g — Add `workflow_dispatch` trigger if missing
+### 3j — Add `workflow_dispatch` trigger if missing
 
 Check the `on:` block of each caller workflow file. If `workflow_dispatch` is not already listed as a trigger, add it. Preserve all existing triggers unchanged.
 
@@ -151,7 +165,7 @@ on:
   workflow_dispatch:
 ```
 
-### 3h — Remove top-level concurrency block
+### 3k — Remove top-level concurrency block
 
 If a workflow file calls `android_build_alpaka_upload.yml` or `android_build_store_upload.yml`, remove the entire top-level `concurrency:` block if present. These reusable workflows handle concurrency and cancellation internally, so a top-level concurrency setting is redundant and should not be carried over.
 
@@ -167,9 +181,11 @@ concurrency:
 
 Remove the block regardless of the exact `group:` expression or `cancel-in-progress:` value. Do not remove job-level `concurrency:` settings (inside a `jobs.<job-id>:` block) — only the top-level key.
 
-### 3i — Rename workflow name
+### 3l — Rename workflow name
 
-For each file, rename the workflow's top-level `name:` based on which reusable workflow it calls:
+Only apply this step if the workflow file calls **exactly one** reusable workflow (i.e. all jobs use the same single reusable workflow). If the workflow file calls multiple different reusable workflows, skip this step entirely — the existing name likely reflects the broader purpose of the file.
+
+For each qualifying file, rename the workflow's top-level `name:` based on which reusable workflow it calls:
 
 | Reusable workflow called | New workflow name |
 |---|---|

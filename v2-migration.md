@@ -7,9 +7,10 @@ This guide covers breaking changes for callers of the reusable workflows in `.gi
 1. **All inputs renamed** from `snake_case`/`camelCase` to `kebab-case`
 2. **`android_build_ubdiag_upload.yml` removed** — no replacement
 3. **Self-hosted MinIO cache inputs/secrets removed** from all workflows
-4. **JDK default changed** from `17` to `21`
-5. **Android image default changed** to `2026.03.1-ndk`
-6. New input **use-git-lfs** defaults to false
+4. **workingDirectorySuffix removed**, should be part of `workingDirectory`
+5. **JDK default changed** from `17` to `21`
+6. **Android image default changed** to `2026.03.1-ndk`
+7. New input **use-git-lfs** defaults to false
 
 ---
 
@@ -23,7 +24,6 @@ Every workflow that had `snake_case` or `camelCase` inputs now uses `kebab-case`
 | `appModule` | `app-module` |
 | `concurrencyGroup` | `concurrency-group` |
 | `workingDirectory` | `working-directory` |
-| `workingDirectorySuffix` | `working-directory-suffix` |
 | `gradleArgs` | `gradle-args` |
 | `libModule` | `lib-module` |
 | `versionNameSuffix` | `version-name-suffix` |
