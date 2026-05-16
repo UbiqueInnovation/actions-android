@@ -33,6 +33,10 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      PRE_BUILD_SCRIPT:
+        required: false
+        type: string
+        description: 'bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -74,6 +78,11 @@ jobs:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
           lfs: 'true'
+
+      # Run prebuild script
+      - name: "Pre Build Script"
+        if: ${{ inputs.PRE_BUILD_SCRIPT }}
+        run: ${{ inputs.PRE_BUILD_SCRIPT }}
 
       # Set build variables for reuse in multiple steps
       - name: Set Build Variables
