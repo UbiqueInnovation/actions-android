@@ -15,7 +15,7 @@ inputs:
     description: 'Whether to set up the Rust toolchain.'
     required: true
   flavor:
-    description: 'The build flavor. Used to compute flavor_capitalized.'
+    description: 'The build flavor. Used to compute flavor-capitalized.'
     required: true
   app-module:
     description: 'The Gradle app module (e.g. "app" or "android:androidApp").'
