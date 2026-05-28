@@ -67,9 +67,6 @@ jobs:
           use-git-lfs: ${{ inputs.use-git-lfs }}
           jdk: ${{ inputs.jdk }}
           setup-rust: ${{ inputs.setup-rust }}
-          maven-proxy-url: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-          maven-proxy-username: ${{ secrets.UB_ARTIFACTORY_USER }}
-          maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.lib-module }}'
 
       # Append version name suffix

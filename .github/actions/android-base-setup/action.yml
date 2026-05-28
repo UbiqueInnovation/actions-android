@@ -1,8 +1,7 @@
 name: Setup Android Environment
 description: >
   Base setup for Android CI jobs. Checks out the repository, sets up a JDK,
-  configures the Maven proxy, sets up the Gradle cache,
-  and optionally sets up the Rust toolchain.
+  sets up the Gradle cache, and optionally sets up the Rust toolchain.
 
 inputs:
   checkout-token:
@@ -16,15 +15,6 @@ inputs:
     required: true
   setup-rust:
     description: 'Whether to set up the Rust toolchain.'
-    required: true
-  maven-proxy-url:
-    description: 'Artifactory URL (with /android suffix) for the Maven proxy.'
-    required: true
-  maven-proxy-username:
-    description: 'Artifactory username for Maven proxy authentication.'
-    required: true
-  maven-proxy-password:
-    description: 'Artifactory password for Maven proxy authentication.'
     required: true
   gradle-cache-job-id:
     description: 'Job ID for Gradle cache scoping (e.g. JDK version + module).'
@@ -46,13 +36,6 @@ runs:
       with:
         distribution: 'zulu'
         java-version: ${{ inputs.jdk }}
-
-    - name: Setup Maven Proxy
-      uses: UbiqueInnovation/actions-android/.github/actions/maven-proxy-setup@v2
-      with:
-        maven-proxy-url: ${{ inputs.maven-proxy-url }}
-        maven-proxy-username: ${{ inputs.maven-proxy-username }}
-        maven-proxy-password: ${{ inputs.maven-proxy-password }}
 
     - name: Setup Gradle Cache
       uses: UbiqueInnovation/actions-android/.github/actions/gradle-cache-setup@v2
