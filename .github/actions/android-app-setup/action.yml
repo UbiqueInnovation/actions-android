@@ -34,21 +34,21 @@ inputs:
     required: true
 
 outputs:
-  flavor_capitalized:
+  flavor-capitalized:
     description: 'The flavor name with the first letter capitalized.'
-    value: ${{ steps.vars.outputs.flavor_capitalized }}
-  app_module_path:
+    value: ${{ steps.vars.outputs.flavor-capitalized }}
+  app-module-path:
     description: 'The app module path with colons replaced by slashes.'
-    value: ${{ steps.vars.outputs.app_module_path }}
-  build_id:
+    value: ${{ steps.vars.outputs.app-module-path }}
+  build-id:
     description: 'A random UUID for this build.'
-    value: ${{ steps.vars.outputs.build_id }}
-  build_number:
+    value: ${{ steps.vars.outputs.build-id }}
+  build-number:
     description: 'The GitHub run number.'
-    value: ${{ steps.vars.outputs.build_number }}
-  build_batch:
+    value: ${{ steps.vars.outputs.build-number }}
+  build-batch:
     description: 'The GitHub run ID.'
-    value: ${{ steps.vars.outputs.build_batch }}
+    value: ${{ steps.vars.outputs.build-batch }}
 
 runs:
   using: composite
@@ -70,12 +70,12 @@ runs:
       shell: bash
       run: |
         flavor=${{ inputs.flavor }}
-        echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+        echo "flavor-capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
 
         appModulePath=${{ inputs.app-module }}
         appModulePath=${appModulePath//:/\/}
-        echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
+        echo "app-module-path=$appModulePath" >> "$GITHUB_OUTPUT"
 
-        echo "build_id=$(cat /proc/sys/kernel/random/uuid)" >> "$GITHUB_OUTPUT"
-        echo "build_number=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-        echo "build_batch=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+        echo "build-id=$(cat /proc/sys/kernel/random/uuid)" >> "$GITHUB_OUTPUT"
+        echo "build-number=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+        echo "build-batch=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
