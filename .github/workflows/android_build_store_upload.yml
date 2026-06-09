@@ -96,9 +96,6 @@ jobs:
           setup-rust: ${{ inputs.setup-rust }}
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
-          maven-proxy-url: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-          maven-proxy-username: ${{ secrets.UB_ARTIFACTORY_USER }}
-          maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
 
       # Build the app
@@ -160,9 +157,6 @@ jobs:
           setup-rust: false
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
-          maven-proxy-url: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-          maven-proxy-username: ${{ secrets.UB_ARTIFACTORY_USER }}
-          maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
 
       - name: Unstash app bundle
