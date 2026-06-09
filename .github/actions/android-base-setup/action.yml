@@ -1,7 +1,7 @@
 name: Setup Android Environment
 description: >
   Base setup for Android CI jobs. Checks out the repository, sets up a JDK,
-  configures the Maven proxy, sets up the Gradle cache, installs zstd,
+  configures the Maven proxy, sets up the Gradle cache,
   and optionally sets up the Rust toolchain.
 
 inputs:
@@ -58,10 +58,6 @@ runs:
       uses: UbiqueInnovation/actions-android/.github/actions/gradle-cache-setup@v2
       with:
         job-id: ${{ inputs.gradle-cache-job-id }}
-
-    - name: Install zstd
-      shell: bash
-      run: sudo apt-get install -y zstd
 
     - name: Setup Rust toolchain
       if: ${{ inputs.setup-rust == 'true' }}
