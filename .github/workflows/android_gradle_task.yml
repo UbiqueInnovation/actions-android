@@ -32,7 +32,15 @@ on:
         default: false
         type: boolean
         description: 'Use git lfs during repository checkout'
+      jdk:
+        type: string
+        required: false
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
     secrets:
+      ANDROID_JENKINS_PAT:
+        required: false
+        description: 'Optional PAT for checking out private repositories or submodules. Falls back to the default GITHUB_TOKEN if not set.'
       UB_ARTIFACTORY_URL:
         required: true
       UB_ARTIFACTORY_REPO_ANDROID:
@@ -56,11 +64,13 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Setup Android environment
+        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
         with:
-          lfs: ${{ inputs.use-git-lfs }}
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: 'false'
 
       - name: Run Gradle task
         run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }}

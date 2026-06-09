@@ -1,0 +1,65 @@
+name: Setup Android App Build
+description: Extended setup for Android app build jobs.
+
+inputs:
+  checkout-token:
+    description: 'Token used for checkout.'
+    required: true
+  use-git-lfs:
+    description: 'Use git lfs during repository checkout.'
+    required: true
+  jdk:
+    description: 'The JDK version to use.'
+    required: true
+  setup-rust:
+    description: 'Whether to set up the Rust toolchain.'
+    required: true
+  flavor:
+    description: 'The build flavor. Used to compute flavor_capitalized.'
+    required: true
+  app-module:
+    description: 'The Gradle app module (e.g. "app" or "android:androidApp").'
+    required: true
+
+outputs:
+  flavor_capitalized:
+    description: 'The flavor name with the first letter capitalized.'
+    value: ${{ steps.vars.outputs.flavor_capitalized }}
+  app_module_path:
+    description: 'The app module path with colons replaced by slashes.'
+    value: ${{ steps.vars.outputs.app_module_path }}
+  build_id:
+    description: 'A random UUID for this build.'
+    value: ${{ steps.vars.outputs.build_id }}
+  build_number:
+    description: 'The GitHub run number.'
+    value: ${{ steps.vars.outputs.build_number }}
+  build_batch:
+    description: 'The GitHub run ID.'
+    value: ${{ steps.vars.outputs.build_batch }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Android environment
+      uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
+      with:
+        checkout-token: ${{ inputs.checkout-token }}
+        use-git-lfs: ${{ inputs.use-git-lfs }}
+        jdk: ${{ inputs.jdk }}
+        setup-rust: ${{ inputs.setup-rust }}
+
+    - name: Set Build Variables
+      id: vars
+      shell: bash
+      run: |
+        flavor=${{ inputs.flavor }}
+        echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
+
+        appModulePath=${{ inputs.app-module }}
+        appModulePath=${appModulePath//:/\/}
+        echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
+
+        echo "build_id=$(cat /proc/sys/kernel/random/uuid)" >> "$GITHUB_OUTPUT"
+        echo "build_number=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+        echo "build_batch=${{ github.run_id }}" >> "$GITHUB_OUTPUT"

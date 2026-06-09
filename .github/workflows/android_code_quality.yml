@@ -40,10 +40,15 @@ on:
         required: false
         default: '2026.03.1-ndk'
         description: The Android image version to use. Default is 2026.03.1-ndk.
-      setup-rust-tool-chain:
+      setup-rust:
         required: false
         default: false
         type: boolean
+      jdk:
+        type: string
+        required: false
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
       use-git-lfs:
         required: false
         default: false
@@ -61,7 +66,7 @@ on:
       UBIQUE_POEDITOR_API_KEY:
         required: true
       UBIQUE_SONAR_TOKEN:
-        required: true
+        required: false
       ACR_REGISTRY:
         required: false
         description: Required if run-coeus is true
@@ -88,47 +93,36 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - name: Setup Android app build environment
+        id: setup
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: ${{ inputs.use-git-lfs }}
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust }}
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
 
-      # Set build variables for reuse in multiple steps
-      - name: Set Build Variables
-        id: vars
+      # Set Gradle properties for reuse in multiple steps
+      - name: Set Gradle Properties
+        id: gradle
         shell: bash
         run: |
-          export flavor=${{ inputs.flavor }}
-          appModulePath=${{ inputs.app-module }}
-          appModulePath=${appModulePath//:/\/}
-          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
-          export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
-
-      # Setup JDK environment
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
-
-      # Setup rust Tool Chain
-      - name: Setup rust Tool Chain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
-        if: ${{ inputs.setup-rust-tool-chain }}
 
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.run-tests) }}
-        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.vars.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.vars.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.setup.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Run Android Lint checks
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.run-lint) }}
-        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.vars.outputs.flavor_capitalized }}Debug ${{ steps.vars.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.setup.outputs.flavor_capitalized }}Debug ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
@@ -137,7 +131,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
-        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.vars.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
@@ -145,7 +139,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2.21.0
         with:
           check_name: 'Unit Test Results'
-          files: ${{ steps.vars.outputs.app_module_path }}/build/test-results/**/*.xml
+          files: ${{ steps.setup.outputs.app_module_path }}/build/test-results/**/*.xml
+
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.run-coeus) }}
     name: Run coeus binary analysis
@@ -159,42 +154,39 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-coeus
       cancel-in-progress: true
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - name: Setup Android app build environment
+        id: setup
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: ${{ inputs.use-git-lfs }}
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust }}
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
 
-      # Set build variables for reuse in multiple steps
-      - name: Set Build Variables
-        id: vars
+      # Set Gradle properties for reuse in multiple steps
+      - name: Set Gradle Properties
+        id: gradle
         shell: bash
         run: |
-          export flavor=${{ inputs.flavor }}
-          appModulePath=${{ inputs.app-module }}
-          appModulePath=${appModulePath//:/\/}
-          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          echo "app_module_path=$appModulePath" >> "$GITHUB_OUTPUT"
-          export gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
+          gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
           echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
-
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
 
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.vars.outputs.flavor_capitalized }}Release ${{ steps.vars.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor_capitalized }}Release ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+
       - name: Find APK and Mapping
         id: find-apk
         shell: bash
         run: |
-          export apk=`find $GITHUB_WORKSPACE/${{ steps.vars.outputs.app_module_path }}/build/outputs/apk/ -name '*.apk'`
-          export mapping=`find $GITHUB_WORKSPACE/${{ steps.vars.outputs.app_module_path }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          export apk=`find $GITHUB_WORKSPACE/${{ steps.setup.outputs.app_module_path }}/build/outputs/apk/ -name '*.apk'`
+          export mapping=`find $GITHUB_WORKSPACE/${{ steps.setup.outputs.app_module_path }}/build/outputs/mapping/ -name 'mapping.txt' || true`
           echo "apk=${apk//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
           echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
+
       - name: Docker login for Azure registry
         id: coeus-docker-login
         uses: azure/docker-login@v2

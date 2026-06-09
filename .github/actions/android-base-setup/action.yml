@@ -1,0 +1,43 @@
+name: Setup Android Environment
+description: >
+  Base setup for Android CI jobs. Checks out the repository, installs zstd,
+  sets up a JDK, and optionally sets up the Rust toolchain.
+
+inputs:
+  checkout-token:
+    description: 'Token used for checkout.'
+    required: true
+  use-git-lfs:
+    description: 'Use git lfs during repository checkout.'
+    required: true
+  jdk:
+    description: 'The JDK version to use.'
+    required: true
+  setup-rust:
+    description: 'Whether to set up the Rust toolchain.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v6.0.2
+      with:
+        token: ${{ inputs.checkout-token }}
+        submodules: 'recursive'
+        lfs: ${{ inputs.use-git-lfs }}
+        fetch-depth: 10
+
+    - name: Set up JDK
+      uses: actions/setup-java@v5.2.0
+      with:
+        distribution: 'zulu'
+        java-version: ${{ inputs.jdk }}
+
+    - name: Install zstd
+      shell: bash
+      run: sudo apt-get install -y zstd
+
+    - name: Setup Rust toolchain
+      if: ${{ inputs.setup-rust == 'true' }}
+      uses: actions-rust-lang/setup-rust-toolchain@v1.15.4

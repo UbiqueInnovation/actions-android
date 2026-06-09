@@ -25,7 +25,7 @@ on:
         default: ''
         required: false
         description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
-      setup-rust-tool-chain:
+      setup-rust:
         required: false
         default: false
         type: boolean
@@ -90,7 +90,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ inputs.flavor }} Flavor
+    name: Build flavor ${{ inputs.flavor }}
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
@@ -103,111 +103,55 @@ jobs:
       group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - name: Setup Android app build environment
+        id: setup
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: ${{ inputs.use-git-lfs }}
-          fetch-depth: 10
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust }}
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
 
-      - name: Ensure ~/.ssh is a directory
+      - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
         if: ${{ env.SSH_KEY != '' }}
-        shell: bash
-        run: |
-          if [ -e "$HOME/.ssh" ] && [ ! -d "$HOME/.ssh" ]; then
-            echo "~/.ssh exists but is not a directory. Deleting it..."
-            rm -f "$HOME/.ssh"
-            echo "Removed ~/.ssh."
-          else
-            echo "~/.ssh is either a directory or does not exist. No action needed."
-          fi
-
-      - name: "Add SSH Key"
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        if: ${{ env.SSH_KEY != '' }}
-        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
-      - name: "Add GitHub SSH keys to the known_hosts file"
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        if: ${{ env.SSH_KEY != '' }}
-        run: |
-          cat >> ~/.ssh/known_hosts <<EOF
-          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-          github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
-          EOF
-        shell: bash
-
-      # Run prebuild script
-      - name: "Pre Build Script"
+      - name: Pre Build Script
         if: ${{ inputs.pre-build-script }}
         run: ${{ inputs.pre-build-script }}
 
-      # Set build variables for reuse in multiple steps
-      - name: Set Build Variables
-        id: vars
-        shell: bash
-        run: |
-          flavor=${{ inputs.flavor }}
-          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          
-          buildBatch=${{ github.run_id }}
-          echo "build_batch=$buildBatch" >> "$GITHUB_OUTPUT"
-          
-          buildId=$(cat /proc/sys/kernel/random/uuid)
-          echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
-          
-          buildNumber=${{ github.run_number }}
-          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
+      - name: Write build_id to file
+        run: echo "${{ steps.setup.outputs.build_id }}" > build_id.txt
 
-      - name: write build_id to file
-        run: echo "${{ steps.vars.outputs.build_id }}" > build_id.txt
-
-      - name: upload build_id as artifact
+      - name: Upload build_id as artifact
         uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ inputs.flavor }}_build_id
           compression-level: 0
           path: ${{ inputs.working-directory }}/build_id.txt
 
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: 'zulu'
-          java-version: ${{ inputs.jdk }}
-
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
-
-      # Setup rust Tool Chain
-      - name: Setup rust Tool Chain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
-        if: ${{ inputs.setup-rust-tool-chain }}
-
       # Build and upload app to Alpaka
       - name: Build app
+        shell: bash
         run: |
           if [ -n "${{ inputs.working-directory-suffix }}" ]; then
             cd "${{ inputs.working-directory-suffix }}"
           fi
-          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assembleAndPublishToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release \
+          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assembleAndPublishToAlpaka${{ steps.setup.outputs.flavor_capitalized }}Release \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
-            -Pbuild_batch=${{ steps.vars.outputs.build_batch }} \
-            -Pbuild_id=${{ steps.vars.outputs.build_id }} \
-            -Pbuild_number=${{ steps.vars.outputs.build_number }} \
+            -Pbuild_batch=${{ steps.setup.outputs.build_batch }} \
+            -Pbuild_id=${{ steps.setup.outputs.build_id }} \
+            -Pbuild_number=${{ steps.setup.outputs.build_number }} \
             -Pbranch=${{ inputs.git-branch }} \
             -PcommitHash=${{ inputs.git-sha }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
@@ -219,9 +163,8 @@ jobs:
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
         run: |
-          echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
-          echo '| | |' >> $GITHUB_STEP_SUMMARY
+          echo '| **Alpaka Build Info** | |' >> $GITHUB_STEP_SUMMARY
           echo '|---|---|' >> $GITHUB_STEP_SUMMARY
-          echo '| Build Batch | ${{ steps.vars.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Build ID | ${{ steps.vars.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Build Number | ${{ steps.vars.outputs.build_number }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Batch | ${{ steps.setup.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build ID | ${{ steps.setup.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Number | ${{ steps.setup.outputs.build_number }} |' >> $GITHUB_STEP_SUMMARY

@@ -28,6 +28,10 @@ on:
         required: false
         default: '21'
         description: The JDK version to use. Default is 21.
+      setup-rust:
+        required: false
+        default: false
+        type: boolean
       use-git-lfs:
         required: false
         default: false
@@ -43,7 +47,6 @@ on:
       UB_ARTIFACTORY_PASSWORD:
         required: true
 
-
 jobs:
   build:
     name: Build library
@@ -57,20 +60,13 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - name: Setup Android environment
+        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: ${{ inputs.use-git-lfs }}
-
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: 'zulu'
-          java-version: ${{ inputs.jdk }}
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust }}
 
       # Append version name suffix
       - name: Append version name suffix
