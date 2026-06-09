@@ -114,19 +114,19 @@ jobs:
         shell: bash
         run: |
           gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
-          echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
+          echo "gradle-properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.run-tests) }}
-        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.setup.outputs.flavor-capitalized }}DebugUnitTest ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.setup.outputs.flavor-capitalized }}DebugUnitTest ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Run Android Lint checks
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.run-lint) }}
-        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.setup.outputs.flavor-capitalized }}Debug ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.setup.outputs.flavor-capitalized }}Debug ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
@@ -135,7 +135,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
-        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
@@ -179,12 +179,12 @@ jobs:
         shell: bash
         run: |
           gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
-          echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
+          echo "gradle-properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor-capitalized }}Release ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor-capitalized }}Release ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       - name: Find APK and Mapping
         id: find-apk
