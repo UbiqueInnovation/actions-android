@@ -111,19 +111,19 @@ jobs:
         shell: bash
         run: |
           gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
-          echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
+          echo "gradle-properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Run Unit Tests
       - name: Run Unit Tests
         id: tests
         if: ${{ fromJSON(inputs.run-tests) }}
-        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.setup.outputs.flavor_capitalized }}DebugUnitTest ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:test${{ steps.setup.outputs.flavor-capitalized }}DebugUnitTest ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Run Android Lint checks
       - name: Run Lint
         id: lint
         if: ${{ fromJSON(inputs.run-lint) }}
-        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.setup.outputs.flavor_capitalized }}Debug ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:lint${{ steps.setup.outputs.flavor-capitalized }}Debug ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Run Sonarqube code analysis
       - name: Run Sonarqube
@@ -132,7 +132,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ANDROID_JENKINS_PAT }}
           SONAR_TOKEN: ${{ secrets.UBIQUE_SONAR_TOKEN }}
-        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:sonar ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       # Publish test results to pull requests
       - name: Publish Unit Test Results
@@ -140,7 +140,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2.21.0
         with:
           check_name: 'Unit Test Results'
-          files: ${{ steps.setup.outputs.app_module_path }}/build/test-results/**/*.xml
+          files: ${{ steps.setup.outputs.app-module-path }}/build/test-results/**/*.xml
 
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.run-coeus) }}
@@ -173,19 +173,19 @@ jobs:
         shell: bash
         run: |
           gradleProps="-PsentryAuthToken=${{ secrets.SENTRY_AUTH_TOKEN }} -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} ${{ secrets.ADDITIONAL_GRADLE_PROPS }}"
-          echo "gradle_properties=$gradleProps" >> "$GITHUB_OUTPUT"
+          echo "gradle-properties=$gradleProps" >> "$GITHUB_OUTPUT"
 
       # Run Coeus
       - name: Assemble the APK for static code analysis
         id: coeus-assemble
-        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor_capitalized }}Release ${{ steps.gradle.outputs.gradle_properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
+        run: ./gradlew :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor-capitalized }}Release ${{ steps.gradle.outputs.gradle-properties }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} --daemon
 
       - name: Find APK and Mapping
         id: find-apk
         shell: bash
         run: |
-          export apk=`find $GITHUB_WORKSPACE/${{ steps.setup.outputs.app_module_path }}/build/outputs/apk/ -name '*.apk'`
-          export mapping=`find $GITHUB_WORKSPACE/${{ steps.setup.outputs.app_module_path }}/build/outputs/mapping/ -name 'mapping.txt' || true`
+          export apk=`find $GITHUB_WORKSPACE/${{ steps.setup.outputs.app-module-path }}/build/outputs/apk/ -name '*.apk'`
+          export mapping=`find $GITHUB_WORKSPACE/${{ steps.setup.outputs.app-module-path }}/build/outputs/mapping/ -name 'mapping.txt' || true`
           echo "apk=${apk//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
           echo "mapping=${mapping//__w/home\/runner\/_work\/}" >> $GITHUB_OUTPUT
 

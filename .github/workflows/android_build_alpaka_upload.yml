@@ -97,11 +97,11 @@ jobs:
       group: ${{ inputs.concurrency-group }}-build
       cancel-in-progress: true
     outputs:
-      flavor_capitalized: ${{ steps.setup.outputs.flavor_capitalized }}
-      app_module_path: ${{ steps.setup.outputs.app_module_path }}
-      build_batch: ${{ steps.setup.outputs.build_batch }}
-      build_id: ${{ steps.setup.outputs.build_id }}
-      build_number: ${{ steps.setup.outputs.build_number }}
+      flavor-capitalized: ${{ steps.setup.outputs.flavor-capitalized }}
+      app-module-path: ${{ steps.setup.outputs.app-module-path }}
+      build-batch: ${{ steps.setup.outputs.build-batch }}
+      build-id: ${{ steps.setup.outputs.build-id }}
+      build-number: ${{ steps.setup.outputs.build-number }}
     steps:
       - name: Setup Android app build environment
         id: setup
@@ -128,7 +128,7 @@ jobs:
         run: ${{ inputs.pre-build-script }}
 
       - name: Write build_id to file
-        run: echo "${{ steps.setup.outputs.build_id }}" > build_id.txt
+        run: echo "${{ steps.setup.outputs.build-id }}" > build_id.txt
 
       - name: Upload build_id as artifact
         uses: actions/upload-artifact@v7.0.1
@@ -140,15 +140,15 @@ jobs:
       - name: Build app
         shell: bash
         run: |
-          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor_capitalized }}Release \
+          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor-capitalized }}Release \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
             -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
-            -Pbuild_batch=${{ steps.setup.outputs.build_batch }} \
-            -Pbuild_id=${{ steps.setup.outputs.build_id }} \
-            -Pbuild_number=${{ steps.setup.outputs.build_number }} \
+            -Pbuild_batch=${{ steps.setup.outputs.build-batch }} \
+            -Pbuild_id=${{ steps.setup.outputs.build-id }} \
+            -Pbuild_number=${{ steps.setup.outputs.build-number }} \
             -Pbranch=${{ inputs.git-branch }} \
             -PcommitHash=${{ inputs.git-sha }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
@@ -161,8 +161,8 @@ jobs:
         with:
           name: ${{ inputs.flavor }}_app_outputs
           path: |
-            ${{ inputs.working-directory }}${{ steps.setup.outputs.app_module_path }}/build/outputs/**
-            !${{ inputs.working-directory }}${{ steps.setup.outputs.app_module_path }}/build/outputs/**/logs/**
+            ${{ inputs.working-directory }}${{ steps.setup.outputs.app-module-path }}/build/outputs/**
+            !${{ inputs.working-directory }}${{ steps.setup.outputs.app-module-path }}/build/outputs/**/logs/**
           compression-level: 6
           retention-days: 1
           if-no-files-found: error
@@ -209,21 +209,21 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.flavor }}_app_outputs
-          path: ${{ inputs.working-directory }}${{ needs.build.outputs.app_module_path }}/build/outputs/
+          path: ${{ inputs.working-directory }}${{ needs.build.outputs.app-module-path }}/build/outputs/
 
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
         run: |
           echo '| **Alpaka Build Info** | |' >> $GITHUB_STEP_SUMMARY
           echo '|---|---|' >> $GITHUB_STEP_SUMMARY
-          echo '| Build Batch | ${{ needs.build.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Build ID | ${{ needs.build.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Build Number | ${{ needs.build.outputs.build_number }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Batch | ${{ needs.build.outputs.build-batch }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build ID | ${{ needs.build.outputs.build-id }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Number | ${{ needs.build.outputs.build-number }} |' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload app to Alpaka
         shell: bash
         run: |
-          ./gradlew :${{ inputs.app-module }}:publishToAlpaka${{ needs.build.outputs.flavor_capitalized }}Release \
+          ./gradlew :${{ inputs.app-module }}:publishToAlpaka${{ needs.build.outputs.flavor-capitalized }}Release \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
