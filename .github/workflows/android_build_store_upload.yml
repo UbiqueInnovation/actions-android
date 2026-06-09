@@ -34,6 +34,11 @@ on:
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
+      working-directory:
+        type: string
+        default: './'
+        required: false
+        description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
       use-git-lfs:
         type: boolean
         required: false
@@ -63,10 +68,13 @@ on:
 
 jobs:
   build:
-    name: Build flavor ${{ inputs.flavor }}
+    name: Build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for this workflow, git ref and app module (for apps that have multiple apps in the same workflow)
@@ -121,19 +129,24 @@ jobs:
           cp "${{ steps.setup.outputs.app_module_path }}"/build/outputs/bundle/${{ inputs.flavor }}ReleaseUpload/*.aab "$AAB_STAGING_DIR"
 
       # Upload the .aab artifact so the upload job (and humans) can download it
-      - name: Save app artifact
+      - name: Stash app bundle
         uses: actions/upload-artifact@v7.0.1
         with:
           name: app-bundle
-          path: ${{ env.AAB_STAGING_DIR }}/*.aab
-          compression-level: 0
+          path: ${{ inputs.working-directory }}${{ env.AAB_STAGING_DIR }}/*.aab
+          compression-level: 1
+          retention-days: 7
+          if-no-files-found: error
 
   upload:
-    name: Upload flavor ${{ inputs.flavor }} to Play Store
+    name: Upload
     needs: build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 30
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
@@ -152,11 +165,11 @@ jobs:
           maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
 
-      - name: Download app bundle
+      - name: Unstash app bundle
         uses: actions/download-artifact@v4
         with:
           name: app-bundle
-          path: ${{ env.AAB_STAGING_DIR }}
+          path: ${{ inputs.working-directory }}${{ env.AAB_STAGING_DIR }}
 
       - name: Upload to Play Store
         run: |
@@ -166,9 +179,6 @@ jobs:
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.ANDROID_PUBLISHER_CREDENTIALS }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}

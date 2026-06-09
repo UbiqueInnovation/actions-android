@@ -20,11 +20,6 @@ on:
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      working-directory-suffix:
-        type: string
-        default: ''
-        required: false
-        description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
       setup-rust:
         required: false
         default: false
@@ -90,7 +85,7 @@ on:
 
 jobs:
   build:
-    name: Build flavor ${{ inputs.flavor }}
+    name: Build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
       image: cimg/android:${{ inputs.android-image-version }}
@@ -99,9 +94,14 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
-      # Cancel any previous runs that have not yet finished for the configured concurrency group
-      group: ${{ inputs.concurrency-group }}
+      group: ${{ inputs.concurrency-group }}-build
       cancel-in-progress: true
+    outputs:
+      flavor_capitalized: ${{ steps.setup.outputs.flavor_capitalized }}
+      app_module_path: ${{ steps.setup.outputs.app_module_path }}
+      build_batch: ${{ steps.setup.outputs.build_batch }}
+      build_id: ${{ steps.setup.outputs.build_id }}
+      build_number: ${{ steps.setup.outputs.build_number }}
     steps:
       - name: Setup Android app build environment
         id: setup
@@ -140,14 +140,10 @@ jobs:
           compression-level: 0
           path: ${{ inputs.working-directory }}/build_id.txt
 
-      # Build and upload app to Alpaka
       - name: Build app
         shell: bash
         run: |
-          if [ -n "${{ inputs.working-directory-suffix }}" ]; then
-            cd "${{ inputs.working-directory-suffix }}"
-          fi
-          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assembleAndPublishToAlpaka${{ steps.setup.outputs.flavor_capitalized }}Release \
+          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor_capitalized }}Release \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
@@ -162,13 +158,82 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}
-          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
+
+      - name: Stash build output
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ inputs.flavor }}_app_outputs
+          path: |
+            ${{ inputs.working-directory }}${{ steps.setup.outputs.app_module_path }}/build/outputs/**
+            !${{ inputs.working-directory }}${{ steps.setup.outputs.app_module_path }}/build/outputs/**/logs/**
+          compression-level: 6
+          retention-days: 1
+          if-no-files-found: error
+
+  upload:
+    name: Upload
+    needs: build
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    container:
+      image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ inputs.concurrency-group }}-upload
+      cancel-in-progress: true
+    steps:
+      - name: Setup Android app build environment
+        id: setup
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
+        with:
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: false
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
+          maven-proxy-url: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+          maven-proxy-username: ${{ secrets.UB_ARTIFACTORY_USER }}
+          maven-proxy-password: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+          gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Pre Build Script
+        if: ${{ inputs.pre-build-script }}
+        run: ${{ inputs.pre-build-script }}
+
+      - name: Unstash build output
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.flavor }}_app_outputs
+          path: ${{ inputs.working-directory }}${{ needs.build.outputs.app_module_path }}/build/outputs/
 
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
         run: |
           echo '| **Alpaka Build Info** | |' >> $GITHUB_STEP_SUMMARY
           echo '|---|---|' >> $GITHUB_STEP_SUMMARY
-          echo '| Build Batch | ${{ steps.setup.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Build ID | ${{ steps.setup.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Build Number | ${{ steps.setup.outputs.build_number }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Batch | ${{ needs.build.outputs.build_batch }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build ID | ${{ needs.build.outputs.build_id }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Number | ${{ needs.build.outputs.build_number }} |' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload app to Alpaka
+        shell: bash
+        run: |
+          ./gradlew :${{ inputs.app-module }}:publishToAlpaka${{ needs.build.outputs.flavor_capitalized }}Release \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
