@@ -42,7 +42,9 @@ on:
 jobs:
   build:
     name: Build library
-    runs-on: ["self-hosted", "linux", "stable"]
+    runs-on: ["k8s-runner"]
+    container:
+      image: cimg/android:2026.03.1-ndk
     defaults:
       run:
         working-directory: ${{ inputs.workingDirectory }}
