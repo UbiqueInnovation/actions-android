@@ -23,6 +23,9 @@ inputs:
   gradle-cache-job-id:
     description: 'Job ID for Gradle cache scoping (e.g. JDK version + module).'
     required: true
+  pre-build-script:
+    description: 'Optional bash script that is executed after the environment setup and before the build.'
+    required: true
 
 outputs:
   flavor-capitalized:
@@ -52,6 +55,7 @@ runs:
         jdk: ${{ inputs.jdk }}
         setup-rust: ${{ inputs.setup-rust }}
         gradle-cache-job-id: ${{ inputs.gradle-cache-job-id }}
+        pre-build-script: ${{ inputs.pre-build-script }}
 
     - name: Set Build Variables
       id: vars
