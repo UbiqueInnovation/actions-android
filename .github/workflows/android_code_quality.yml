@@ -54,6 +54,11 @@ on:
         default: false
         type: boolean
         description: 'Use git lfs during repository checkout'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -104,6 +109,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       # Set Gradle properties for reuse in multiple steps
       - name: Set Gradle Properties
@@ -166,6 +172,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       # Set Gradle properties for reuse in multiple steps
       - name: Set Gradle Properties

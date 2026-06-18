@@ -46,6 +46,11 @@ on:
         default: false
         type: boolean
         description: 'Use git lfs during repository checkout'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -79,6 +84,7 @@ jobs:
           jdk: ${{ inputs.jdk }}
           setup-rust: ${{ inputs.setup-rust }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.lib-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       # Append version name suffix
       - name: Append version name suffix

@@ -37,6 +37,11 @@ on:
         required: false
         default: '21'
         description: 'The JDK version to use. Default is 21.'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: false
@@ -72,6 +77,7 @@ jobs:
           jdk: ${{ inputs.jdk }}
           setup-rust: 'false'
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.task }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       - name: Run Gradle task
         run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }}

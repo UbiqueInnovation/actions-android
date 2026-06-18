@@ -19,6 +19,9 @@ inputs:
   gradle-cache-job-id:
     description: 'Job ID for Gradle cache scoping (e.g. JDK version + module).'
     required: true
+  pre-build-script:
+    description: 'Bash script that is executed after the environment setup and before the build.'
+    required: true
 
 runs:
   using: composite
@@ -45,3 +48,8 @@ runs:
     - name: Setup Rust toolchain
       if: ${{ inputs.setup-rust == 'true' }}
       uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
+
+    - name: Pre Build Script
+      if: ${{ inputs.pre-build-script != '' }}
+      shell: bash
+      run: ${{ inputs.pre-build-script }}

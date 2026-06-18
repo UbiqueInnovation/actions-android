@@ -51,6 +51,7 @@ on:
       pre-build-script:
         required: false
         type: string
+        default: ''
         description: 'Bash script that is executed before the actual build'
       git-branch:
         required: false
@@ -103,6 +104,14 @@ jobs:
       build-id: ${{ steps.setup.outputs.build-id }}
       build-number: ${{ steps.setup.outputs.build-number }}
     steps:
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
       - name: Setup Android app build environment
         id: setup
         uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
@@ -114,18 +123,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
-
-      - name: Setup SSH
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        if: ${{ env.SSH_KEY != '' }}
-        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
-
-      - name: Pre Build Script
-        if: ${{ inputs.pre-build-script }}
-        run: ${{ inputs.pre-build-script }}
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       - name: Write build_id to file
         run: echo "${{ steps.setup.outputs.build-id }}" > build_id.txt
@@ -181,6 +179,14 @@ jobs:
       group: ${{ inputs.concurrency-group }}-upload
       cancel-in-progress: true
     steps:
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
       - name: Setup Android app build environment
         id: setup
         uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
@@ -192,18 +198,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
-
-      - name: Setup SSH
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        if: ${{ env.SSH_KEY != '' }}
-        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
-
-      - name: Pre Build Script
-        if: ${{ inputs.pre-build-script }}
-        run: ${{ inputs.pre-build-script }}
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       - name: Unstash build output
         uses: actions/download-artifact@v8.0.1

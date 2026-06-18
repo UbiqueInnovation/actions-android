@@ -44,6 +44,11 @@ on:
         required: false
         default: false
         description: 'Use git lfs during repository checkout'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -97,6 +102,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       # Build the app
       - name: Build app
@@ -158,6 +164,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
           app-module: ${{ inputs.app-module }}
           gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       - name: Unstash app bundle
         uses: actions/download-artifact@v8.0.1
