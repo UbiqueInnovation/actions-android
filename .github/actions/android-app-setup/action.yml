@@ -24,7 +24,7 @@ inputs:
     description: 'Job ID for Gradle cache scoping (e.g. JDK version + module).'
     required: true
   pre-build-script:
-    description: 'Optional bash script that is executed after the environment setup and before the build.'
+    description: 'Bash script that is executed after the environment setup and before the build.'
     required: true
 
 outputs:
