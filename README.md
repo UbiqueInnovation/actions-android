@@ -48,7 +48,12 @@ uses: UbiqueInnovation/actions-android/.github/workflows/example.yml@v2.0.1
  
 Breaking changes are only introduced in new major versions (`v3`, etc.), so `@v2` will never receive a breaking update.
 
-## Migration
+## Migration Guide
 
 - [v2 Migration Guide](v2-migration.md) — human-readable summary of all breaking changes
 - [v2 Migration Agent Instructions](v2-migration-agent.md) — instructions for an AI agent to migrate a project automatically
+
+## Development Notes
+
+- The [internal composite actions](.github/actions) are referenced using the major tag `vX`, thus they must not receive any breaking changes, see also [Issue 70](https://github.com/UbiqueInnovation/actions-android/issues/70).
+- Publish a new version by creating a [Release](https://github.com/UbiqueInnovation/actions-android/releases) with the tag `vX.Y.Z`. The floating major tag `vX` will be [updated automatically](https://github.com/UbiqueInnovation/actions-android/actions/workflows/_release_major.yml).
