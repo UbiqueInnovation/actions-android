@@ -111,8 +111,8 @@ This workflow no longer exists. There is no direct replacement.
 
 - All inputs renamed (see table above)
 - `jdk` default: `17` → `21`
-- **New optional inputs:** `setup-rust` (default `false`), `use-git-lfs` (default `false`)
-
+- Execution environment changed: the job now runs inside `cimg/android:${android-image-version}` (default `2026.03.1-ndk`) and the runner can be configured via `runs-on`
+- **New optional inputs:** `runs-on`, `android-image-version`, `pre-build-script` (default `''`), `setup-rust` (default `false`), `use-git-lfs` (default `false`)
 ---
 
 ### `multiplatform_library_artifactory.yml`
