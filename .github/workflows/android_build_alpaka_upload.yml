@@ -6,46 +6,21 @@ on:
       flavor:
         type: string
         required: true
-      appModule:
+      app-module:
         type: string
         required: false
         default: 'app'
-      concurrencyGroup:
+        description: 'The gradle app module (e.g. custom "android:androidApp")'
+      concurrency-group:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
-      workingDirectory:
+      working-directory:
         type: string
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      workingDirectorySuffix:
-        type: string
-        default: ''
-        required: false
-        description: 'Suffix to the working directory of the script, only used for gradle build. Must end with a slash or be empty.'
-      cacheKeyPrefix:
-        type: string
-        required: false
-        default: ${{ github.repository }}
-      self_hosted_cache_endpoint:
-        required: false
-        default: 'truenas.local.lan'
-        type: string
-        description: Should be set for selfhosted builds, but build won't fail without it
-      self_hosted_cache_port:
-        required: false
-        default: 9001
-        type: number
-      self_hosted_cache_bucket:
-        required: false
-        default: github-actions-cache
-        type: string
-      self_hosted_cache_region:
-        required: false
-        default: local
-        type: string
-      setup_rust_tool_chain:
+      setup-rust:
         required: false
         default: false
         type: boolean
@@ -56,32 +31,38 @@ on:
       jdk:
         type: string
         required: false
-        default: '17'
-        description: The JDK version to use. Default is 17.
-      android_image_version:
+        default: '21'
+        description: The JDK version to use. Default is 21.
+      android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
-      sentry_log_level:
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
+      sentry-log-level:
         type: string
         required: false
         default: 'warn'
         description: 'The Sentry log level to use. Default is "warn". Other options are "trace", "debug", "info" and "error"'
-      PRE_BUILD_SCRIPT:
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
+      pre-build-script:
         required: false
         type: string
-        description: 'bash script that is executed before the actual build'
-      git_branch:
+        default: ''
+        description: 'Bash script that is executed before the actual build'
+      git-branch:
         required: false
         type: string
         default: ${{ github.ref_name }}
-        description: 'can be used to ovveride the github branch name that will be displayed in alpaka'
-      git_sha:
+        description: 'Can be used to override the Git branch name that will be displayed in Alpaka'
+      git-sha:
         required: false
         type: string
         default: ${{ github.sha }}
-        description: 'can be used to ovveride the github commit hash that will be displayed in alpaka'
+        description: 'Can be used to override the Git commit hash that will be displayed in Alpaka'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -102,162 +83,146 @@ on:
       SSH_KEY:
         description: 'SSH key to import'
         required: false
-      self_hosted_cache_access_key:
-        required: false
-        description: Must be set to use selfhosted cache
-      self_hosted_cache_secret_key:
-        required: false
 
 jobs:
   build:
-    name: Build ${{ inputs.flavor }} Flavor
+    name: Build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     defaults:
       run:
-        working-directory: ${{ inputs.workingDirectory }}
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
-      # Cancel any previous runs that have not yet finished for the configured concurrency group
-      group: ${{ inputs.concurrencyGroup }}
+      group: ${{ inputs.concurrency-group }}-build
       cancel-in-progress: true
+    outputs:
+      flavor-capitalized: ${{ steps.setup.outputs.flavor-capitalized }}
+      app-module-path: ${{ steps.setup.outputs.app-module-path }}
+      build-batch: ${{ steps.setup.outputs.build-batch }}
+      build-id: ${{ steps.setup.outputs.build-id }}
+      build-number: ${{ steps.setup.outputs.build-number }}
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-        with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: 'true'
-          fetch-depth: 10
-
-      - name: Ensure ~/.ssh is a directory
+      - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
         if: ${{ env.SSH_KEY != '' }}
-        shell: bash
-        run: |
-          if [ -e "$HOME/.ssh" ] && [ ! -d "$HOME/.ssh" ]; then
-            echo "~/.ssh exists but is not a directory. Deleting it..."
-            rm -f "$HOME/.ssh"
-            echo "Removed ~/.ssh."
-          else
-            echo "~/.ssh is either a directory or does not exist. No action needed."
-          fi
-
-      - name: "Add SSH Key"
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        if: ${{ env.SSH_KEY != '' }}
-        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
-      - name: "Add GitHub SSH keys to the known_hosts file"
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        if: ${{ env.SSH_KEY != '' }}
-        run: |
-          cat >> ~/.ssh/known_hosts <<EOF
-          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-          github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
-          EOF
-        shell: bash
+      - name: Setup Android app build environment
+        id: setup
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
+        with:
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust }}
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
+          gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
-      # Run prebuild script
-      - name: "Pre Build Script"
-        if: ${{ inputs.PRE_BUILD_SCRIPT }}
-        run: ${{ inputs.PRE_BUILD_SCRIPT }}
+      - name: Write build_id to file
+        run: echo "${{ steps.setup.outputs.build-id }}" > build_id.txt
 
-      # Set build variables for reuse in multiple steps
-      - name: Set Build Variables
-        id: vars
-        shell: bash
-        run: |
-          flavor=${{ inputs.flavor }}
-          echo "flavor_capitalized=${flavor~}" >> "$GITHUB_OUTPUT"
-          
-          buildBatch=${{ github.run_id }}
-          echo "build_batch=$buildBatch" >> "$GITHUB_OUTPUT"
-          
-          buildId=$(cat /proc/sys/kernel/random/uuid)
-          echo "build_id=$buildId" >> "$GITHUB_OUTPUT"
-          
-          buildNumber=${{ github.run_number }}
-          echo "build_number=$buildNumber" >> "$GITHUB_OUTPUT"
-
-      - name: write build_id to file
-        run: echo "${{ steps.vars.outputs.build_id }}" > build_id.txt
-
-      - name: upload build_id as artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload build_id as artifact
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ inputs.flavor }}_build_id
-          path: ${{ inputs.workingDirectory }}/build_id.txt
+          compression-level: 0
+          path: ${{ inputs.working-directory }}/build_id.txt
 
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
-        with:
-          distribution: 'zulu'
-          java-version: ${{ inputs.jdk }}
-
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
-
-      - name: Cache Gradle packages on self-hosted MinIO
-        uses: tespkg/actions-cache@v1.7.1
-        if: false # Disabled for now to test if it's faster without it
-        with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
-          use-fallback: true
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.cacheKeyPrefix }}-${{inputs.flavor}}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            cimg-android-${{ inputs.cacheKeyPrefix }}-gradle-
-
-      # Setup rust Tool Chain
-      - name: Setup rust Tool Chain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-        if: ${{ inputs.setup_rust_tool_chain }}
-
-      # Build and upload app to Alpaka
       - name: Build app
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          cache-disabled: true
-          build-root-directory: ${{ inputs.workingDirectory }}${{ inputs.workingDirectorySuffix }}
-          arguments: |
-            :${{ inputs.appModule }}:clean :${{ inputs.appModule }}:assembleAndPublishToAlpaka${{ steps.vars.outputs.flavor_capitalized }}Release
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
-            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }}
-            -Pbuild_batch=${{ steps.vars.outputs.build_batch }}
-            -Pbuild_id=${{ steps.vars.outputs.build_id }}
-            -Pbuild_number=${{ steps.vars.outputs.build_number }}
-            -Pbranch=${{ inputs.git_branch }}
-            -PcommitHash=${{ inputs.git_sha }}
+        shell: bash
+        run: |
+          ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor-capitalized }}Release \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
+            -PubiquePoEditorAPIKey=${{ secrets.UBIQUE_POEDITOR_API_KEY }} \
+            -Pbuild_batch=${{ steps.setup.outputs.build-batch }} \
+            -Pbuild_id=${{ steps.setup.outputs.build-id }} \
+            -Pbuild_number=${{ steps.setup.outputs.build-number }} \
+            -Pbranch=${{ inputs.git-branch }} \
+            -PcommitHash=${{ inputs.git-sha }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_LOG_LEVEL: ${{ inputs.sentry_log_level }}
-          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
+          SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}
+
+      - name: Stash build output
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ inputs.flavor }}_app_outputs
+          path: |
+            ${{ inputs.working-directory }}${{ steps.setup.outputs.app-module-path }}/build/outputs/**
+            !${{ inputs.working-directory }}${{ steps.setup.outputs.app-module-path }}/build/outputs/**/logs/**
+          compression-level: 6
+          retention-days: 1
+          if-no-files-found: error
+
+  upload:
+    name: Upload
+    needs: build
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    container:
+      image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ inputs.concurrency-group }}-upload
+      cancel-in-progress: true
+    steps:
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        if: ${{ env.SSH_KEY != '' }}
+        uses: UbiqueInnovation/actions-android/.github/actions/ssh-setup@v2
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Setup Android app build environment
+        id: setup
+        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
+        with:
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: false
+          flavor: ${{ inputs.flavor }}
+          app-module: ${{ inputs.app-module }}
+          gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.app-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
+
+      - name: Unstash build output
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: ${{ inputs.flavor }}_app_outputs
+          path: ${{ inputs.working-directory }}${{ needs.build.outputs.app-module-path }}/build/outputs/
 
       # Write Alpaka build info to GitHub job summary
       - name: Alpaka Build Summary
         run: |
-          echo '### Alpaka Build Info' >> $GITHUB_STEP_SUMMARY
-          echo 'Build Batch: ${{ steps.vars.outputs.build_batch }}' >> $GITHUB_STEP_SUMMARY
-          echo 'Build ID: ${{ steps.vars.outputs.build_id }}' >> $GITHUB_STEP_SUMMARY
-          echo 'Build Number: ${{ steps.vars.outputs.build_number }}' >> $GITHUB_STEP_SUMMARY
+          echo '| **Alpaka Build Info** | |' >> $GITHUB_STEP_SUMMARY
+          echo '|---|---|' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Batch | ${{ needs.build.outputs.build-batch }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build ID | ${{ needs.build.outputs.build-id }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Build Number | ${{ needs.build.outputs.build-number }} |' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload app to Alpaka
+        shell: bash
+        run: |
+          ./gradlew :${{ inputs.app-module }}:publishToAlpaka${{ needs.build.outputs.flavor-capitalized }}Release \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
+            -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
+            ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
+        env:
+          ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}

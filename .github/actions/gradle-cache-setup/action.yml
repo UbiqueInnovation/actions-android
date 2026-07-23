@@ -1,0 +1,24 @@
+name: Setup Gradle Cache
+description: Configures burrunan/gradle-cache-action for caching Gradle dependencies
+
+inputs:
+  job-id:
+    description: Job ID for cache scoping (e.g. JDK version)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Gradle Cache
+      uses: burrunan/gradle-cache-action@v3.0.2
+      with:
+        job-id: ${{ inputs.job-id }}
+        gradle-dependencies-cache-key: |
+          **/*.gradle*
+          **/gradle-wrapper.properties
+          **/libs.versions.toml
+        save-gradle-dependencies-cache: true
+        save-maven-dependencies-cache: false
+        save-local-build-cache: false
+        concurrent: true
+        gradle-distribution-sha-256-sum-warning: false

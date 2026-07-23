@@ -6,45 +6,46 @@ on:
       task:
         type: string
         required: true
-      gradleArgs:
+      gradle-args:
         type: string
         required: false
-      concurrencyGroup:
+      concurrency-group:
         type: string
         required: false
         default: ${{ github.workflow }}-${{ github.ref }}
-      workingDirectory:
+      working-directory:
         type: string
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      self_hosted_cache_endpoint:
-        required: false
-        default: 'truenas.local.lan'
-        type: string
-        description: Should be set for selfhosted builds, but build won't fail without it
-      self_hosted_cache_port:
-        required: false
-        default: 9001
-        type: number
-      self_hosted_cache_bucket:
-        required: false
-        default: github-actions-cache
-        type: string
-      self_hosted_cache_region:
-        required: false
-        default: local
-        type: string
       runs-on:
         type: string
         required: false
         default: '["k8s-runner"]'
-      android_image_version:
+      android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
+      jdk:
+        type: string
+        required: false
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
     secrets:
+      ANDROID_JENKINS_PAT:
+        required: false
+        description: 'Optional PAT for checking out private repositories or submodules. Falls back to the default GITHUB_TOKEN if not set.'
       UB_ARTIFACTORY_URL:
         required: true
       UB_ARTIFACTORY_REPO_ANDROID:
@@ -53,58 +54,36 @@ on:
         required: true
       UB_ARTIFACTORY_PASSWORD:
         required: true
-      self_hosted_cache_access_key:
-        required: false
-        description: Must be set to use selfhosted cache
-      self_hosted_cache_secret_key:
-        required: false
 
 jobs:
   task:
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     defaults:
       run:
-        working-directory: ${{ inputs.workingDirectory }}
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for the configured concurrency group
-      group: ${{ inputs.concurrencyGroup }}
+      group: ${{ inputs.concurrency-group }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Install zstd
-        run: sudo apt-get install -y zstd
-
-      - name: Cache Gradle packages on self-hosted MinIO
-        uses: tespkg/actions-cache@v1.7.1
-        if: false # Disabled for now to test if it's faster without it
+      - name: Setup Android environment
+        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
         with:
-          endpoint: ${{ inputs.self_hosted_cache_endpoint }}
-          port: ${{ inputs.self_hosted_cache_port }}
-          insecure: true
-          accessKey: ${{ secrets.self_hosted_cache_access_key }}
-          secretKey: ${{ secrets.self_hosted_cache_secret_key }}
-          bucket: ${{ inputs.self_hosted_cache_bucket }}
-          region: ${{ inputs.self_hosted_cache_region }}
-          use-fallback: true
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: cimg-android-${{ inputs.projectKey }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}-${{ inputs.task }}
-          restore-keys: |
-            cimg-android-${{ inputs.projectKey }}-gradle-
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: 'false'
+          gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.task }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       - name: Run Gradle task
-        uses: gradle/actions/setup-gradle@v3.1.0
+        run: ./gradlew ${{ inputs.task }} ${{ inputs.gradle-args }} ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }}
         env:
           UB_ARTIFACTORY_URL: ${{ secrets.UB_ARTIFACTORY_URL }}
           UB_ARTIFACTORY_REPO_ANDROID: ${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
           UB_ARTIFACTORY_URL_ANDROID: '${{ secrets.UB_ARTIFACTORY_URL }}${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}'
           UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USER }}
           UB_ARTIFACTORY_PASSWORD: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
-        with:
-          cache-disabled: true
-          build-root-directory: './'
-          arguments: ${{ inputs.task }} ${{ inputs.gradleArgs }}

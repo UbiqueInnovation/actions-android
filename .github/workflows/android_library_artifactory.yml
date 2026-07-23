@@ -3,22 +3,22 @@ name: Build and publish library artifact
 on:
   workflow_call:
     inputs:
-      workingDirectory:
+      working-directory:
         type: string
         default: './'
         required: false
         description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
-      libModule:
+      lib-module:
         type: string
         required: false
         default: 'lib'
         description: 'The name of the gradle module of the library (similar to the app module)'
-      versionNameSuffix:
+      version-name-suffix:
         type: string
         default: ''
         required: false
         description: 'A suffix to be appended to the version name. Empty by default for release builds'
-      gradlePropertiesPath:
+      gradle-properties-path:
         type: string
         default: './gradle.properties'
         required: false
@@ -26,8 +26,31 @@ on:
       jdk:
         type: string
         required: false
-        default: '17'
-        description: The JDK version to use. Default is 17.
+        default: '21'
+        description: The JDK version to use. Default is 21.
+      runs-on:
+        type: string
+        required: false
+        default: '["k8s-runner"]'
+      android-image-version:
+        type: string
+        required: false
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
+      setup-rust:
+        required: false
+        default: false
+        type: boolean
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -38,56 +61,50 @@ on:
       UB_ARTIFACTORY_PASSWORD:
         required: true
 
-
 jobs:
   build:
     name: Build library
-    runs-on: ["self-hosted", "linux", "stable"]
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    container:
+      image: cimg/android:${{ inputs.android-image-version }}
     defaults:
       run:
-        working-directory: ${{ inputs.workingDirectory }}
+        working-directory: ${{ inputs.working-directory }}
     timeout-minutes: 60
     concurrency:
       # Cancel any previous runs that have not yet finished for the configured concurrency group
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      # Checkout repository and submodules
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
+      - name: Setup Android environment
+        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
         with:
-          token: ${{ secrets.ANDROID_JENKINS_PAT }}
-          submodules: 'recursive'
-          lfs: 'true'
-
-      # Setup JDK environment
-      - name: Set up JDK
-        uses: actions/setup-java@v4.2.1
-        with:
-          distribution: 'zulu'
-          java-version: ${{ inputs.jdk }}
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: ${{ inputs.setup-rust }}
+          gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.lib-module }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
 
       # Append version name suffix
       - name: Append version name suffix
         id: version
-        if: ${{ inputs.versionNameSuffix }} != ''
+        if: ${{ inputs.version-name-suffix }} != ''
         run: |
-          if grep -q "VERSION_NAME=" ${{ inputs.gradlePropertiesPath }}; then
-            sed -i "/^VERSION_NAME=/s/$/${{ inputs.versionNameSuffix }}/" ${{ inputs.gradlePropertiesPath }}
+          if grep -q "VERSION_NAME=" ${{ inputs.gradle-properties-path }}; then
+            sed -i "/^VERSION_NAME=/s/$/${{ inputs.version-name-suffix }}/" ${{ inputs.gradle-properties-path }}
           else
-            echo "Could not find VERSION_NAME gradle property in ${{ inputs.gradlePropertiesPath }}"
+            echo "Could not find VERSION_NAME gradle property in ${{ inputs.gradle-properties-path }}"
             exit 1
           fi
 
       # Run the Gradle publish task
       - name: Build and publish artifact
-        uses: gradle/actions/setup-gradle@v3.1.0
-        with:
-          build-root-directory: ${{ inputs.workingDirectory }}
-          arguments: |
-            :${{ inputs.libModule }}:publish
-            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
-            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }}
+        run: |
+          ./gradlew :${{ inputs.lib-module }}:publish \
+            ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
+            -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
+            -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }}
         env:
           UB_ARTIFACTORY_URL_ANDROID: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}

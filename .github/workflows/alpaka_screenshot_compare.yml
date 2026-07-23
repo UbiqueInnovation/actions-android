@@ -10,11 +10,16 @@ on:
         type: string
         required: false
         default: '["k8s-runner"]'
-      android_image_version:
+      android-image-version:
         type: string
         required: false
-        default: '2024.04.1-ndk'
-        description: The Android image version to use. Default is 2024.04.1-ndk.
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -24,23 +29,23 @@ jobs:
     name: Compare screenshots
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     container:
-      image: cimg/android:${{ inputs.android_image_version }}
+      image: cimg/android:${{ inputs.android-image-version }}
     timeout-minutes: 65
     permissions:
       pull-requests: write
     steps:
       - name: Ensure GH CLI
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
       - run: sudo apt-get install -y gh
 
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.ANDROID_JENKINS_PAT }}
           submodules: 'recursive'
-          lfs: 'true'
+          lfs: ${{ inputs.use-git-lfs }}
           fetch-depth: 10
 
       - name: Create or update comment
