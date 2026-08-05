@@ -63,6 +63,11 @@ on:
         type: string
         default: ${{ github.sha }}
         description: 'Can be used to override the Git commit hash that will be displayed in Alpaka'
+      alpaka-upload-url:
+        required: false
+        type: string
+        default: ''
+        description: 'The Alpaka upload URL (e.g. https://alpaka.ubique.ch/)'
     secrets:
       ANDROID_JENKINS_PAT:
         required: true
@@ -149,6 +154,7 @@ jobs:
             -Pbuild_number=${{ steps.setup.outputs.build-number }} \
             -Pbranch=${{ inputs.git-branch }} \
             -PcommitHash=${{ inputs.git-sha }} \
+            ${{ inputs.alpaka-upload-url != '' && format('-Palpaka.uploadUrl={0}', inputs.alpaka-upload-url) || '' }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -223,6 +229,7 @@ jobs:
             -PubiqueMavenUrl=${{ secrets.UB_ARTIFACTORY_URL_ANDROID }} \
             -PubiqueMavenUser=${{ secrets.UB_ARTIFACTORY_USER }} \
             -PubiqueMavenPass=${{ secrets.UB_ARTIFACTORY_PASSWORD }} \
+            ${{ inputs.alpaka-upload-url != '' && format('-Palpaka.uploadUrl={0}', inputs.alpaka-upload-url) || '' }} \
             ${{ secrets.ADDITIONAL_GRADLE_PROPS }}
         env:
           ALPAKA_UPLOAD_KEY: ${{ secrets.ALPAKA_UPLOAD_KEY }}
