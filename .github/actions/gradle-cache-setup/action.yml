@@ -10,7 +10,7 @@ runs:
   using: composite
   steps:
     - name: Gradle Cache
-      uses: burrunan/gradle-cache-action@v3.0.2
+      uses: burrunan/gradle-cache-action@v3.0.3
       with:
         job-id: ${{ inputs.job-id }}
         gradle-dependencies-cache-key: |
