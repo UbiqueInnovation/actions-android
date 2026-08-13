@@ -87,6 +87,7 @@ jobs:
       cancel-in-progress: true
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
+      GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
     outputs:
       flavor-capitalized: ${{ steps.setup.outputs.flavor-capitalized }}
       app-module-path: ${{ steps.setup.outputs.app-module-path }}
@@ -153,6 +154,7 @@ jobs:
     timeout-minutes: 30
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
+      GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
     steps:
       - name: Setup Android environment
         uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2

@@ -88,6 +88,8 @@ jobs:
   build:
     name: Build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
     container:
       image: cimg/android:${{ inputs.android-image-version }}
     defaults:
@@ -169,6 +171,8 @@ jobs:
     name: Upload
     needs: build
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
     container:
       image: cimg/android:${{ inputs.android-image-version }}
     defaults:
