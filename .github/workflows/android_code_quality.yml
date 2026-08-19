@@ -90,6 +90,10 @@ jobs:
   code_quality:
     name: Run code quality checks
     runs-on: ${{ fromJSON(inputs.runs-on) }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.workers.max=8"
+      CMAKE_BUILD_PARALLEL_LEVEL: 8
+      "ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy": "in-process"
     container:
       image: cimg/android:${{ inputs.android-image-version }}
     timeout-minutes: 60
