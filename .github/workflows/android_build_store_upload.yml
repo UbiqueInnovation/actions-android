@@ -88,6 +88,7 @@ jobs:
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
       GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
+      CMAKE_BUILD_PARALLEL_LEVEL: 8
       "ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy": "in-process"
     outputs:
       flavor-capitalized: ${{ steps.setup.outputs.flavor-capitalized }}
@@ -156,6 +157,7 @@ jobs:
     env:
       AAB_STAGING_DIR: .tmp/publishing_aab
       GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
+      CMAKE_BUILD_PARALLEL_LEVEL: 8
       "ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy": "in-process"
     steps:
       - name: Setup Android environment
