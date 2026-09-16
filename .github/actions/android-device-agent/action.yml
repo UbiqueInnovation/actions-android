@@ -105,6 +105,24 @@ runs:
           exit 1
         fi
 
+    - name: Reset uiautomator2 on-device state
+      shell: bash
+      env:
+        DEVICE: ${{ inputs.device-address }}
+        PORT: ${{ inputs.adb-port }}
+      run: |
+        set -euo pipefail
+        # The UiAutomator2Server instrumentation keeps running on the device after the host
+        # session that started it ends. Its orphaned UiAutomationService registration blocks
+        # every subsequent connection with "UiAutomationService ... already registered!".
+        # Force-stop both packages (what uiautomator2's own reset does) so android-mcp can
+        # start cleanly.
+        adb -s "${DEVICE}:${PORT}" shell am force-stop com.github.uiautomator || true
+        adb -s "${DEVICE}:${PORT}" shell am force-stop com.github.uiautomator.test || true
+        sleep 3
+        echo "Stale uiautomator2 processes (should be none):"
+        adb -s "${DEVICE}:${PORT}" shell ps -A 2>/dev/null | grep -E "com\.github\.uiautomator" || echo "  (none)"
+
     - name: Download APK
       shell: bash
       env:
@@ -150,11 +168,6 @@ runs:
         sleep 3
         echo "Current focused window:"
         adb shell dumpsys window 2>/dev/null | grep -iE "mCurrentFocus|mFocusedApp" | head -n 5 || true
-
-    - name: Set up Node
-      uses: actions/setup-node@v6
-      with:
-        node-version: 20
 
     - name: Set up Python
       uses: actions/setup-python@v5
