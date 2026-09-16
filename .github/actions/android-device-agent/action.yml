@@ -19,6 +19,9 @@ inputs:
     description: 'TCP port the device is listening on for adb (adb tcpip).'
     required: false
     default: '5555'
+  adb-key:
+    description: 'Pre-authorized adb private key (adbkey) for authenticating to the device (store as a secret).'
+    required: true
   apk-url:
     description: 'URL to download the APK to install on the device.'
     required: true
@@ -70,17 +73,35 @@ runs:
         fi
         echo "Tailscale tailnet IPv4: ${ip4}"
 
+    - name: Install ADB authentication key
+      shell: bash
+      env:
+        ADB_KEY: ${{ inputs.adb-key }}
+      run: |
+        set -euo pipefail
+        if [ -z "${ADB_KEY}" ]; then
+          echo "::error::adb-key is required (pass the pre-authorized adb private key as a secret)"
+          exit 1
+        fi
+        mkdir -p "${HOME}/.android"
+        printf '%s\n' "${ADB_KEY}" > "${HOME}/.android/adbkey"
+        chmod 600 "${HOME}/.android/adbkey"
+
     - name: Connect to device via adb
       shell: bash
       env:
         DEVICE: ${{ inputs.device-address }}
         PORT: ${{ inputs.adb-port }}
       run: |
+        set -euo pipefail
+        # Restart the adb server so it loads the key we just installed.
+        adb kill-server 2>/dev/null || true
         adb connect "${DEVICE}:${PORT}"
         adb devices
         if ! adb devices | grep -qE "^[^[:space:]]+ +device$"; then
           echo "No adb device in 'device' state after connect to ${DEVICE}:${PORT}"
           adb devices
+          echo "Hint: the device must already trust this adb key (its public key installed in /data/misc/adb/adb_keys)."
           exit 1
         fi
 

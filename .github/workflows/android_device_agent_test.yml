@@ -56,6 +56,8 @@ on:
         required: true
       SELFHOSTED_LLM_BASE_URL:
         required: true
+      ADB_KEY:
+        required: true
 
 jobs:
   device-agent:
@@ -77,6 +79,7 @@ jobs:
           tailscale-login-server: ${{ inputs.tailscale-login-server }}
           device-address: ${{ inputs.device-address }}
           adb-port: ${{ inputs.adb-port }}
+          adb-key: ${{ secrets.ADB_KEY }}
           apk-url: ${{ inputs.apk-url }}
           prompt: ${{ inputs.prompt }}
           selfhosted-llm-api-key: ${{ secrets.SELFHOSTED_LLM_API_KEY }}
