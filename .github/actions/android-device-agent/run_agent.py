@@ -61,11 +61,11 @@ class LoggingHooks(RunHooks):
         except Exception:  # noqa: BLE001 - logging must never break the run
             pass
 
-    def on_llm_start(self, context, agent, system_prompt, input_items) -> None:
+    async def on_llm_start(self, context, agent, system_prompt, input_items) -> None:
         self._turn += 1
         self._log(f"[agent] turn {self._turn}: calling model")
 
-    def on_llm_end(self, context, agent, response) -> None:
+    async def on_llm_end(self, context, agent, response) -> None:
         try:
             for item in getattr(response, "output", []) or []:
                 t = getattr(item, "type", None)
@@ -88,10 +88,10 @@ class LoggingHooks(RunHooks):
         except Exception:  # noqa: BLE001
             pass
 
-    def on_tool_start(self, context, agent, tool) -> None:
+    async def on_tool_start(self, context, agent, tool) -> None:
         self._log(f"[agent]   -> tool start: {getattr(tool, 'name', tool)}")
 
-    def on_tool_end(self, context, agent, tool, result) -> None:
+    async def on_tool_end(self, context, agent, tool, result) -> None:
         self._log(
             f"[agent]   <- tool end: {getattr(tool, 'name', tool)} "
             f"result={str(result)[:300]}"
