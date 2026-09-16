@@ -1,0 +1,169 @@
+name: Android Device Agent
+description: >
+  Connects to a real Android device over Tailscale + adb, installs a built APK,
+  and runs an LLM agent (driving the device via the mobile-mcp MCP server)
+  against it with a given prompt, returning the agent's output.
+
+inputs:
+  tailscale-auth-key:
+    description: 'Tailscale/Headscale auth key (store as a secret).'
+    required: true
+  tailscale-login-server:
+    description: 'Headscale/Tailscale control server URL.'
+    required: false
+    default: 'https://headscale.ubique.rocks'
+  device-address:
+    description: 'Tailscale IP or hostname of the Android device under test.'
+    required: true
+  adb-port:
+    description: 'TCP port the device is listening on for adb (adb tcpip).'
+    required: false
+    default: '5555'
+  apk-url:
+    description: 'URL to download the APK to install on the device.'
+    required: true
+  prompt:
+    description: 'Instructions for the agent on what to do with the app.'
+    required: true
+  selfhosted-llm-api-key:
+    description: 'OpenAI (or compatible) API key for the agent model.'
+    required: true
+  selfhosted-llm-base-url:
+    description: 'Base URL of the OpenAI-compatible endpoint for the agent model (pass from a secret).'
+    required: true
+  model:
+    description: 'Model name to use for the agent.'
+    required: false
+    default: 'gpt-4o'
+  mcp-package:
+    description: 'npm package that exposes the device-control MCP server.'
+    required: false
+    default: '@mobilenext/mobile-mcp@latest'
+  keep-open-on-failure:
+    description: 'Keep the runner alive on failure for debugging.'
+    required: false
+    default: 'false'
+
+outputs:
+  agent-output:
+    description: 'The final output text produced by the agent.'
+    value: ${{ steps.publish.outputs.agent-output }}
+
+runs:
+  using: composite
+  steps:
+    - name: Connect to Tailscale
+      uses: UbiqueInnovation/tailscale-action@main
+      with:
+        auth-key: ${{ inputs.tailscale-auth-key }}
+        login-server: ${{ inputs.tailscale-login-server }}
+        extra-login-args: '--accept-dns'
+
+    - name: Verify Tailscale is up
+      shell: bash
+      run: |
+        tscale status
+        ip4=$(tscale ip -4)
+        if [ -z "$ip4" ]; then
+          echo "Tailscale did not obtain a tailnet IPv4 address after login"
+          exit 1
+        fi
+        echo "Tailscale tailnet IPv4: ${ip4}"
+
+    - name: Connect to device via adb
+      shell: bash
+      env:
+        DEVICE: ${{ inputs.device-address }}
+        PORT: ${{ inputs.adb-port }}
+      run: |
+        adb connect "${DEVICE}:${PORT}"
+        adb devices
+        if ! adb devices | grep -qE "^[^[:space:]]+ +device$"; then
+          echo "No adb device in 'device' state after connect to ${DEVICE}:${PORT}"
+          adb devices
+          exit 1
+        fi
+
+    - name: Download APK
+      shell: bash
+      env:
+        APK_URL: ${{ inputs.apk-url }}
+      run: |
+        curl -fL --retry 3 -o app.apk "$APK_URL"
+        ls -l app.apk
+
+    - name: Install app on device
+      shell: bash
+      run: adb install -r -g app.apk
+
+    - name: Set up Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install agent dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install openai-agents
+
+    - name: Run agent
+      id: agent
+      shell: bash
+      env:
+        SELFHOSTED_LLM_API_KEY: ${{ inputs.selfhosted-llm-api-key }}
+        SELFHOSTED_LLM_BASE_URL: ${{ inputs.selfhosted-llm-base-url }}
+        MODEL: ${{ inputs.model }}
+        MCP_PACKAGE: ${{ inputs.mcp-package }}
+        PROMPT: ${{ inputs.prompt }}
+      run: |
+        set -o pipefail
+        python "${{ github.action_path }}/run_agent.py" | tee agent-output.txt
+
+    - name: Publish agent output to job summary
+      id: publish
+      shell: bash
+      env:
+        DEVICE_ADDRESS: ${{ inputs.device-address }}
+        ADB_PORT: ${{ inputs.adb-port }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        agent_output="$(cat agent-output.txt)"
+        {
+          echo "### Android Device Agent"
+          echo
+          echo "- **Device:** \`${DEVICE_ADDRESS}:${ADB_PORT}\`"
+          echo "- **Model:** \`${MODEL}\`"
+          echo
+          echo "<details>"
+          echo "<summary>Agent output</summary>"
+          echo
+          echo '```'
+          echo "$agent_output"
+          echo '```'
+          echo
+          echo "</details>"
+        } >> "$GITHUB_STEP_SUMMARY"
+        {
+          echo "agent-output<<ANDROID_AGENT_OUTPUT_EOF"
+          echo "$agent_output"
+          echo "ANDROID_AGENT_OUTPUT_EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Dump Tailscale debug info on failure
+      if: failure()
+      uses: UbiqueInnovation/tailscale-action/debug@feature/debug-dump
+      with:
+        socket-path: /tmp/tailscaled.sock
+
+    - name: Keep workflow open on failure
+      if: failure() && inputs.keep-open-on-failure == 'true'
+      shell: bash
+      run: |
+        echo "Workflow failed; keeping runner alive for debugging."
+        sleep infinity

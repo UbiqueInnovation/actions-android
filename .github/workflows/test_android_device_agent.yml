@@ -1,0 +1,76 @@
+name: Test Android Device Agent (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      device-address:
+        description: 'Tailscale IP or hostname of the Android device under test.'
+        required: true
+        type: string
+      adb-port:
+        description: 'TCP port the device is listening on for adb (adb tcpip).'
+        required: false
+        type: string
+        default: '5555'
+      apk-url:
+        description: 'URL to download the APK to install on the device.'
+        required: true
+        type: string
+      prompt:
+        description: 'Instructions for the agent on what to do with the app.'
+        required: true
+        type: string
+        default: |
+          Launch the app under test. Wait for it to fully load. Take a screenshot,
+          briefly explore the main screens (navigate with the main tabs/buttons), and
+          report what you see, including any crashes, errors, or unexpected behavior.
+      model:
+        description: 'Model name to use for the agent.'
+        required: false
+        type: string
+        default: 'gpt-4o'
+      mcp-package:
+        description: 'npm package that exposes the device-control MCP server.'
+        required: false
+        type: string
+        default: '@mobilenext/mobile-mcp@latest'
+      tailscale-login-server:
+        description: 'Headscale/Tailscale control server URL.'
+        required: false
+        type: string
+        default: 'https://headscale.ubique.rocks'
+      runs-on:
+        description: 'Runner label(s) as a JSON array.'
+        required: false
+        type: string
+        default: '["k8s-runner"]'
+      android-image-version:
+        description: 'The Android image version to use.'
+        required: false
+        type: string
+        default: '2026.03.1-ndk'
+      keep-open-on-failure:
+        description: 'Keep the runner alive on failure for debugging.'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  device-agent:
+    name: Device agent test
+    uses: ./.github/workflows/android_device_agent_test.yml
+    with:
+      device-address: ${{ inputs.device-address }}
+      adb-port: ${{ inputs.adb-port }}
+      apk-url: ${{ inputs.apk-url }}
+      prompt: ${{ inputs.prompt }}
+      model: ${{ inputs.model }}
+      mcp-package: ${{ inputs.mcp-package }}
+      tailscale-login-server: ${{ inputs.tailscale-login-server }}
+      runs-on: ${{ inputs.runs-on }}
+      android-image-version: ${{ inputs.android-image-version }}
+      keep-open-on-failure: ${{ inputs.keep-open-on-failure }}
+    secrets:
+      TAILSCALE_TESTING_AGENT_AUTH_KEY: ${{ secrets.TAILSCALE_TESTING_AGENT_AUTH_KEY }}
+      SELFHOSTED_LLM_API_KEY: ${{ secrets.SELFHOSTED_LLM_API_KEY }}
+      SELFHOSTED_LLM_BASE_URL: ${{ secrets.SELFHOSTED_LLM_BASE_URL }}
