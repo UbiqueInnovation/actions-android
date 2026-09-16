@@ -57,7 +57,7 @@ runs:
       with:
         auth-key: ${{ inputs.tailscale-auth-key }}
         login-server: ${{ inputs.tailscale-login-server }}
-        extra-login-args: '--accept-dns'
+        extra-login-args: '--accept-dns --ssh'
 
     - name: Verify Tailscale is up
       shell: bash
@@ -165,5 +165,10 @@ runs:
       if: failure() && inputs.keep-open-on-failure == 'true'
       shell: bash
       run: |
+        ip4="$(tscale ip -4 2>/dev/null || true)"
         echo "Workflow failed; keeping runner alive for debugging."
+        if [ -n "${ip4}" ]; then
+          echo "Tailscale IPv4: ${ip4}"
+          echo "SSH into the runner with: ssh <user>@${ip4}  (Tailscale SSH enabled via --ssh)"
+        fi
         sleep infinity
