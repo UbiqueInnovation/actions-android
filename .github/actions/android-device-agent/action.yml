@@ -112,16 +112,29 @@ runs:
         PORT: ${{ inputs.adb-port }}
       run: |
         set -euo pipefail
-        # The UiAutomator2Server instrumentation keeps running on the device after the host
-        # session that started it ends. Its orphaned UiAutomationService registration blocks
-        # every subsequent connection with "UiAutomationService ... already registered!".
-        # Force-stop both packages (what uiautomator2's own reset does) so android-mcp can
-        # start cleanly.
-        adb -s "${DEVICE}:${PORT}" shell am force-stop com.github.uiautomator || true
-        adb -s "${DEVICE}:${PORT}" shell am force-stop com.github.uiautomator.test || true
-        sleep 3
-        echo "Stale uiautomator2 processes (should be none):"
-        adb -s "${DEVICE}:${PORT}" shell ps -A 2>/dev/null | grep -E "com\.github\.uiautomator" || echo "  (none)"
+        SERIAL="${DEVICE}:${PORT}"
+        # uiautomator2 3.x runs its server as a plain `app_process`
+        # (com.wetest.uia2.Main from /data/local/tmp/u2.jar, uid 'shell'). When a host
+        # session ends - locally or in a previous CI run - that process is orphaned
+        # under adbd and keeps holding its UiAutomationService registration, so every
+        # subsequent connection fails with:
+        #   IllegalStateException: UiAutomationService ... already registered!
+        # Kill all such orphaned servers so this run starts from a clean state.
+        PIDS="$(adb -s "${SERIAL}" shell ps -A 2>/dev/null | awk '$1 == "shell" && $NF == "app_process" {print $2}' || true)"
+        if [ -n "${PIDS}" ]; then
+          echo "Killing orphaned uiautomator2 server process(es): ${PIDS}"
+          for pid in ${PIDS}; do
+            adb -s "${SERIAL}" shell kill -9 "${pid}" 2>/dev/null || true
+          done
+          sleep 3
+        else
+          echo "No orphaned uiautomator2 server processes found"
+        fi
+        # Legacy uiautomator2 2.x packages, for good measure.
+        adb -s "${SERIAL}" shell am force-stop com.github.uiautomator 2>/dev/null || true
+        adb -s "${SERIAL}" shell am force-stop com.github.uiautomator.test 2>/dev/null || true
+        echo "Remaining 'shell' app_process(es) (should be none):"
+        adb -s "${SERIAL}" shell ps -A 2>/dev/null | awk '$1 == "shell" && $NF == "app_process"' || true
 
     - name: Download APK
       shell: bash
