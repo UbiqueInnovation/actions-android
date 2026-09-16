@@ -98,7 +98,7 @@ runs:
         adb kill-server 2>/dev/null || true
         adb connect "${DEVICE}:${PORT}"
         adb devices
-        if ! adb devices | grep -qE "^[^[:space:]]+ +device$"; then
+        if ! adb devices | grep -qE "^[[:space:]]*[^[:space:]]+[[:space:]]+device[[:space:]]*$"; then
           echo "No adb device in 'device' state after connect to ${DEVICE}:${PORT}"
           adb devices
           echo "Hint: the device must already trust this adb key (its public key installed in /data/misc/adb/adb_keys)."
