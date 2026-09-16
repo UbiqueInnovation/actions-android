@@ -71,7 +71,7 @@ jobs:
     steps:
       - name: Run Android device agent
         id: agent
-        uses: UbiqueInnovation/actions-android/.github/actions/android-device-agent@v2
+        uses: UbiqueInnovation/actions-android/.github/actions/android-device-agent@feature/android-device-agent-test
         with:
           tailscale-auth-key: ${{ secrets.TAILSCALE_TESTING_AGENT_AUTH_KEY }}
           tailscale-login-server: ${{ inputs.tailscale-login-server }}
