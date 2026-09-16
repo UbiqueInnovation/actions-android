@@ -23,7 +23,7 @@ on:
       model:
         type: string
         required: false
-        default: 'gpt-4o'
+        default: 'default'
         description: 'Model name to use for the agent.'
       mcp-package:
         type: string

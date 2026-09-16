@@ -23,7 +23,7 @@ INSTRUCTIONS = (
 def build_model() -> OpenAIChatCompletionsModel:
     api_key = os.environ.get("SELFHOSTED_LLM_API_KEY", "")
     base_url = os.environ.get("SELFHOSTED_LLM_BASE_URL", "").strip()
-    model_name = os.environ.get("MODEL", "gpt-4o")
+    model_name = os.environ.get("MODEL", "default")
 
     if not api_key:
         raise RuntimeError("SELFHOSTED_LLM_API_KEY is not set")

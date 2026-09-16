@@ -34,7 +34,7 @@ inputs:
   model:
     description: 'Model name to use for the agent.'
     required: false
-    default: 'gpt-4o'
+    default: 'default'
   mcp-package:
     description: 'npm package that exposes the device-control MCP server.'
     required: false
