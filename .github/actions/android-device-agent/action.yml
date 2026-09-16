@@ -105,37 +105,6 @@ runs:
           exit 1
         fi
 
-    - name: Reset uiautomator2 on-device state
-      shell: bash
-      env:
-        DEVICE: ${{ inputs.device-address }}
-        PORT: ${{ inputs.adb-port }}
-      run: |
-        set -euo pipefail
-        SERIAL="${DEVICE}:${PORT}"
-        # uiautomator2 3.x runs its server as a plain `app_process`
-        # (com.wetest.uia2.Main from /data/local/tmp/u2.jar, uid 'shell'). When a host
-        # session ends - locally or in a previous CI run - that process is orphaned
-        # under adbd and keeps holding its UiAutomationService registration, so every
-        # subsequent connection fails with:
-        #   IllegalStateException: UiAutomationService ... already registered!
-        # Kill all such orphaned servers so this run starts from a clean state.
-        PIDS="$(adb -s "${SERIAL}" shell ps -A 2>/dev/null | awk '$1 == "shell" && $NF == "app_process" {print $2}' || true)"
-        if [ -n "${PIDS}" ]; then
-          echo "Killing orphaned uiautomator2 server process(es): ${PIDS}"
-          for pid in ${PIDS}; do
-            adb -s "${SERIAL}" shell kill -9 "${pid}" 2>/dev/null || true
-          done
-          sleep 3
-        else
-          echo "No orphaned uiautomator2 server processes found"
-        fi
-        # Legacy uiautomator2 2.x packages, for good measure.
-        adb -s "${SERIAL}" shell am force-stop com.github.uiautomator 2>/dev/null || true
-        adb -s "${SERIAL}" shell am force-stop com.github.uiautomator.test 2>/dev/null || true
-        echo "Remaining 'shell' app_process(es) (should be none):"
-        adb -s "${SERIAL}" shell ps -A 2>/dev/null | awk '$1 == "shell" && $NF == "app_process"' || true
-
     - name: Download APK
       shell: bash
       env:
@@ -191,7 +160,114 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        python -m pip install openai-agents uv
+        python -m pip install openai-agents uv uiautomator2
+
+    - name: Prepare device automation (uiautomator2)
+      shell: bash
+      env:
+        DEVICE: ${{ inputs.device-address }}
+        PORT: ${{ inputs.adb-port }}
+      run: |
+        set -euo pipefail
+        # uiautomator2 3.x runs its server as a plain `app_process`
+        # (com.wetest.uia2.Main from /data/local/tmp/u2.jar, uid 'shell'). Two quirks
+        # make a naive first RPC unreliable:
+        #   1. A half-dead server left by a previous session holds a stuck
+        #      UiAutomationService registration -> new servers fail with
+        #      "UiAutomationService ... already registered!".
+        #   2. The very first RPC to a freshly started server fails with
+        #      "ApplicationSharedMemory not initialized" on recent Android; the
+        #      second one succeeds.
+        # So: reuse a healthy warm server if present, otherwise kill the stale
+        # ones, start fresh and warm it up (retry the first RPC). Then keep a
+        # heartbeat running so the server stays warm and alive (it self-exits
+        # after a couple of minutes idle) until the agent's first tool call.
+        python - <<'PYEOF'
+        import os, subprocess, sys, time
+        import uiautomator2 as u2
+
+        serial = f"{os.environ['DEVICE']}:{os.environ['PORT']}"
+
+        def server_pids():
+            out = subprocess.run(
+                ["adb", "-s", serial, "shell", "ps", "-A"],
+                capture_output=True, text=True,
+            ).stdout
+            pids = []
+            for line in out.splitlines():
+                f = line.split()
+                if len(f) >= 9 and f[0] == "shell" and f[-1] == "app_process":
+                    pids.append(f[1])
+            return pids
+
+        def kill_servers():
+            for pid in server_pids():
+                subprocess.run(
+                    ["adb", "-s", serial, "shell", "kill", "-9", pid],
+                    capture_output=True,
+                )
+
+        def info_with_warmup_retry(d, label):
+            try:
+                return d.info
+            except Exception as first:
+                print(f"{label}: first RPC failed ({type(first).__name__}); retrying")
+                time.sleep(2)
+                return d.info
+
+        d = None
+        # 1) Reuse a healthy warm server if one is already running on the device.
+        try:
+            cand = u2.connect(serial)
+            info = cand.info
+            print(f"Reusing existing healthy uiautomator2 server: "
+                  f"{info['currentPackageName']} (sdk {info['sdkInt']})")
+            d = cand
+        except Exception as e:
+            print(f"No healthy server running ({type(e).__name__}: {str(e)[:120]})")
+
+        # 2) Otherwise kill any stale/half-dead servers and start + warm up fresh.
+        if d is None:
+            last_err = None
+            for attempt in range(3):
+                kill_servers()
+                time.sleep(2)
+                try:
+                    cand = u2.connect(serial)
+                    info = info_with_warmup_retry(cand, f"fresh server (attempt {attempt + 1})")
+                    print(f"Fresh uiautomator2 server ready: "
+                          f"{info['currentPackageName']} (sdk {info['sdkInt']})")
+                    d = cand
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    print(f"Attempt {attempt + 1} failed: {type(e).__name__}: {str(e)[:200]}")
+            if last_err is not None:
+                print(f"::error::device automation not ready after 3 attempts: {last_err}")
+                sys.exit(1)
+
+        # 3) Keep the server warm and alive until the agent connects.
+        hb = (
+            "import sys, time\n"
+            "import uiautomator2 as u2\n"
+            "d = u2.connect(sys.argv[1])\n"
+            "while True:\n"
+            "    try:\n"
+            "        d.info\n"
+            "    except Exception:\n"
+            "        pass\n"
+            "    time.sleep(20)\n"
+        )
+        with open("/tmp/u2_heartbeat.py", "w") as f:
+            f.write(hb)
+        subprocess.Popen(
+            [sys.executable, "/tmp/u2_heartbeat.py", serial],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        print("Heartbeat started: uiautomator2 server kept warm for the agent")
+        PYEOF
 
     - name: Run agent
       id: agent
