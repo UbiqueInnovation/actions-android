@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shlex
 import sys
 
 from agents import Agent, Runner, RunHooks
@@ -25,25 +26,32 @@ def build_model() -> OpenAIChatCompletionsModel:
 
 def build_instructions(app_package: str) -> str:
     parts = [
-        "You are an autonomous Android QA tester. A single Android device is connected "
-        "over adb and the app under test is already installed."
+        "You are an autonomous Android QA tester. A single Android device is "
+        "connected over adb and the app under test is already installed."
     ]
     if app_package:
         parts.append(
-            f"The app under test has Android package name '{app_package}'. It has already "
-            "been launched and should be in the foreground. Interact ONLY with this app. "
-            f"If it is not in the foreground, bring it back (relaunch it by package name "
+            f"The app under test has Android package name '{app_package}'. It has "
+            "been launched into the foreground. Interact ONLY with this app. If it "
+            f"is not in the foreground, bring it back (relaunch it by package name "
             f"'{app_package}'). Do NOT open, launch, or interact with any other app."
         )
     parts.append(
-        "Use the available mobile-mcp tools to drive the device (list devices, launch app, "
-        "tap, long-press, swipe, type text, press hardware buttons, take screenshots, and "
-        "read device logs). Work methodically: before you act, take a screenshot to see the "
-        "current screen; after each action, take another screenshot to verify what changed. "
-        "If an action produces no visible change, do NOT repeat the same tap - press Back, "
-        "tap a different element, or relaunch the target app. If the app shows a crash, a "
-        "blank screen, or a stuck loading screen, note it and stop guessing. Finish with a "
-        "concise written report of exactly what you did, what you observed on screen, and "
+        "Drive the device with the android-mcp tools. The reliable workflow is: "
+        "1) Call Snapshot to read the current screen. By default it returns a text "
+        "tree of the UI (element text, resource-id, class, and coordinates) - read "
+        "that text; you do not need a vision screenshot for most steps. "
+        "2) To act, prefer ClickBySelector using resourceId or text - it handles "
+        "layout reflow and is far more reliable than blind coordinate taps. Only "
+        "fall back to Click with coordinates from the Snapshot tree when no "
+        "selector matches. "
+        "3) After each action, call Snapshot again and confirm the screen changed "
+        "as expected. If an action has no effect, do NOT repeat it: use "
+        "WaitForElement for content that is still loading, press Back, or try a "
+        "different element. Use Press for hardware buttons (back, home, enter, "
+        "volume, ...) and Type to enter text. If the app shows a crash, a blank "
+        "screen, or a stuck loading screen, note it and stop guessing. Finish with "
+        "a concise written report of exactly what you did, what you observed, and "
         "any crashes, errors, or unexpected behavior."
     )
     return " ".join(parts)
@@ -98,10 +106,17 @@ class LoggingHooks(RunHooks):
         )
 
 
-async def run_agent(prompt: str, mcp_package: str, app_package: str) -> str:
+def mcp_params(mcp_command: str) -> dict:
+    parts = shlex.split(mcp_command)
+    if not parts:
+        raise RuntimeError("MCP_COMMAND is empty")
+    return {"command": parts[0], "args": parts[1:]}
+
+
+async def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
     async with MCPServerStdio(
         name="android-mcp",
-        params={"command": "npx", "args": ["-y", mcp_package]},
+        params=mcp_params(mcp_command),
     ) as server:
         agent = Agent(
             name="android-tester",
@@ -118,13 +133,16 @@ async def run_agent(prompt: str, mcp_package: str, app_package: str) -> str:
 
 def main() -> None:
     prompt = os.environ.get("PROMPT", "")
-    mcp_package = os.environ.get("MCP_PACKAGE", "@mobilenext/mobile-mcp@latest")
+    mcp_command = os.environ.get("MCP_COMMAND", "uvx --python 3.13 android-mcp")
     app_package = os.environ.get("APP_PACKAGE", "")
 
     if not prompt:
         raise RuntimeError("PROMPT is not set")
 
-    output = asyncio.run(run_agent(prompt, mcp_package, app_package))
+    print(f"[agent] MCP server: {mcp_command}", flush=True)
+    print(f"[agent] target app: {app_package or '(not set)'}", flush=True)
+
+    output = asyncio.run(run_agent(prompt, mcp_command, app_package))
     print("\n=== AGENT FINAL OUTPUT ===\n", flush=True)
     print(output)
 

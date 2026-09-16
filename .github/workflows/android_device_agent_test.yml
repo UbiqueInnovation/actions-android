@@ -25,11 +25,11 @@ on:
         required: false
         default: 'default'
         description: 'Model name to use for the agent.'
-      mcp-package:
+      mcp-command:
         type: string
         required: false
-        default: '@mobilenext/mobile-mcp@latest'
-        description: 'npm package that exposes the device-control MCP server.'
+        default: 'uvx --python 3.13 android-mcp'
+        description: 'Full command that launches the device-control MCP server.'
       tailscale-login-server:
         type: string
         required: false
@@ -85,5 +85,5 @@ jobs:
           selfhosted-llm-api-key: ${{ secrets.SELFHOSTED_LLM_API_KEY }}
           selfhosted-llm-base-url: ${{ secrets.SELFHOSTED_LLM_BASE_URL }}
           model: ${{ inputs.model }}
-          mcp-package: ${{ inputs.mcp-package }}
+          mcp-command: ${{ inputs.mcp-command }}
           keep-open-on-failure: ${{ inputs.keep-open-on-failure }}
