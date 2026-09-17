@@ -55,6 +55,12 @@ def build_instructions(app_package: str) -> str:
         "tree is empty or genuinely ambiguous - screenshots are large and slow you down."
     )
     parts.append(
+        "You are in a tool-calling loop: EVERY reply must invoke exactly one tool. Keep "
+        "any reasoning to a single short sentence before the tool call and never reply "
+        "with text only. If you are unsure what to do next, call "
+        "mobile_list_elements_on_screen to re-read the screen."
+    )
+    parts.append(
         "Acting: tap elements by their reference (ref='@e12'). Never pass an empty ref. "
         "Only fall back to raw x/y coordinates if an element has no ref, and in that case "
         "pass x and y and omit the ref argument entirely. Type into the focused field with "
@@ -112,6 +118,24 @@ def truncate(text, limit) -> str:
     return text[:limit] + f" ...[+{len(text) - limit} chars]"
 
 
+def wrap_observation(tool, limit) -> None:
+    """Cap a tool's returned observation so huge screen dumps don't blow up the
+    context window (every observation is re-sent on every subsequent turn)."""
+    original = tool.forward
+
+    def wrapped(*args, **kwargs):
+        out = original(*args, **kwargs)
+        if isinstance(out, str) and len(out) > limit:
+            return (
+                out[:limit]
+                + f"\n[observation truncated: {len(out)} -> {limit} chars; "
+                "re-run this tool if you need the rest]"
+            )
+        return out
+
+    tool.forward = wrapped
+
+
 def render_trace(agent) -> str:
     lines = []
     n = 0
@@ -164,11 +188,15 @@ def run_agent(prompt, mcp_command, app_package):
     with ToolCollection.from_mcp(
         server_parameters, trust_remote_code=True, structured_output=False
     ) as tools:
+        max_obs = int(os.environ.get("MAX_OBS_CHARS", "15000"))
+        wrapped = list(tools.tools)
+        for t in wrapped:
+            wrap_observation(t, max_obs)
         agent = ToolCallingAgent(
-            tools=[*tools.tools],
+            tools=wrapped,
             model=model,
             instructions=build_instructions(app_package),
-            max_steps=int(os.environ.get("MAX_TURNS", "40")),
+            max_steps=int(os.environ.get("MAX_TURNS", "50")),
         )
         result = agent.run(prompt, return_full_result=True)
         trace = render_trace(agent)
