@@ -189,6 +189,9 @@ runs:
         PACKAGE: ${{ steps.pkg.outputs.package-name }}
       run: |
         set -euo pipefail
+        echo "Force-stopping ${PACKAGE} to clear leftover session state ..."
+        adb shell am force-stop "${PACKAGE}" 2>/dev/null || true
+        sleep 1
         echo "Bringing ${PACKAGE} to the foreground ..."
         adb shell monkey -p "${PACKAGE}" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 \
           || echo "Warning: monkey launch failed; the agent may relaunch it itself"
