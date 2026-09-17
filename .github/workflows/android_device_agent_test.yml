@@ -40,10 +40,6 @@ on:
         required: false
         default: 'https://headscale.ubique.rocks'
         description: 'Headscale/Tailscale control server URL.'
-      runs-on:
-        type: string
-        required: false
-        default: '["k8s-runner"]'
       android-image-version:
         type: string
         required: false
@@ -67,7 +63,7 @@ on:
 jobs:
   device-agent:
     name: Device agent test
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: k8s-runner-small
     container:
       image: cimg/android:${{ inputs.android-image-version }}
     timeout-minutes: 60

@@ -39,11 +39,6 @@ on:
         required: false
         type: string
         default: 'https://headscale.ubique.rocks'
-      runs-on:
-        description: 'Runner label(s) as a JSON array.'
-        required: false
-        type: string
-        default: '["k8s-runner"]'
       android-image-version:
         description: 'The Android image version to use.'
         required: false
@@ -67,7 +62,6 @@ jobs:
       model: ${{ inputs.model }}
       mcp-package: ${{ inputs.mcp-package }}
       tailscale-login-server: ${{ inputs.tailscale-login-server }}
-      runs-on: ${{ inputs.runs-on }}
       android-image-version: ${{ inputs.android-image-version }}
       keep-open-on-failure: ${{ inputs.keep-open-on-failure }}
     secrets:
