@@ -138,7 +138,45 @@ runs:
 
     - name: Install app on device
       shell: bash
-      run: adb install -r -g app.apk
+      env:
+        APK_URL: ${{ inputs.apk-url }}
+      run: |
+        set -euo pipefail
+        DEV_APK="/data/local/tmp/app.apk"
+        expected="$(wc -c < app.apk | tr -d ' ')"
+
+        # Streaming the APK from the runner to the device over the Tailscale adb
+        # link is slow (~100 KB/s on a relayed tailnet). Prefer letting the device
+        # download the APK itself over its own (much faster) network, then install
+        # the local file with `pm install`. Fall back to `adb install` (push over
+        # the adb link) if the device has no usable HTTP client.
+        download_on_device() {
+          if adb shell 'command -v curl >/dev/null 2>&1'; then
+            echo "Downloading APK on-device with curl ..."
+            adb shell "curl -fsSL --retry 3 -o '${DEV_APK}' '${APK_URL}'" || return 1
+          elif adb shell 'command -v wget >/dev/null 2>&1'; then
+            echo "Downloading APK on-device with wget ..."
+            adb shell "wget -O '${DEV_APK}' '${APK_URL}'" || return 1
+          else
+            echo "No curl/wget available on the device"
+            return 1
+          fi
+          actual="$(adb shell "wc -c < '${DEV_APK}' 2>/dev/null" | tr -d ' \r')"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "On-device download size mismatch (got ${actual}, expected ${expected})"
+            return 1
+          fi
+          return 0
+        }
+
+        if download_on_device; then
+          echo "Installing on-device APK with pm install ..."
+          adb shell pm install -r -g "${DEV_APK}"
+          adb shell rm -f "${DEV_APK}"
+        else
+          echo "On-device download unavailable/failed; falling back to 'adb install' from the runner."
+          adb install -r -g app.apk
+        fi
 
     - name: Launch target app in foreground
       shell: bash
