@@ -6,7 +6,20 @@ from mcp import StdioServerParameters
 from smolagents import OpenAIModel, ToolCallingAgent, ToolCollection
 
 
-def build_model() -> OpenAIModel:
+class AutoToolModel(OpenAIModel):
+    """OpenAIModel that forces tool_choice='auto' when tools are present and omits
+    it otherwise. smolagents defaults to tool_choice='required', which makes the
+    model fail every 'thinking only' turn with a JSON-blob parse error; and a
+    forced tool_choice on a no-tool call (final answer / summary) trips
+    'tool_choice without tools' API errors."""
+
+    def _prepare_completion_kwargs(self, *args, **kwargs):
+        if kwargs.get("tools_to_call_from"):
+            kwargs["tool_choice"] = "auto"
+        return super()._prepare_completion_kwargs(*args, **kwargs)
+
+
+def build_model() -> AutoToolModel:
     api_key = os.environ.get("SELFHOSTED_LLM_API_KEY", "")
     base_url = os.environ.get("SELFHOSTED_LLM_BASE_URL", "").strip()
     model_name = os.environ.get("MODEL", "default")
@@ -14,7 +27,7 @@ def build_model() -> OpenAIModel:
     if not api_key:
         raise RuntimeError("SELFHOSTED_LLM_API_KEY is not set")
 
-    return OpenAIModel(
+    return AutoToolModel(
         model_id=model_name,
         api_base=base_url if base_url else None,
         api_key=api_key,
@@ -30,32 +43,38 @@ def build_instructions(app_package: str) -> str:
     ]
     if app_package:
         parts.append(
-            f"The app under test has Android package name '{app_package}'. It has already "
-            "been launched into the foreground. Test ONLY this app. Before your first "
-            f"action, confirm it is in the foreground with mobile_get_foreground_app; if "
-            f"it is not, bring it back with mobile_launch_app using package "
-            f"'{app_package}'. Never open, launch, or interact with any other app, the "
-            "launcher, or the home screen, and do NOT press the HOME button (it leaves "
-            "the app under test)."
+            f"The app under test has Android package name '{app_package}'. It is already in "
+            "the foreground. Test ONLY this app. If you ever find yourself outside it, come "
+            f"back with mobile_launch_app using package '{app_package}'. Never interact with "
+            "other apps, the launcher or the home screen, and never press the HOME button."
         )
     parts.append(
-        "Drive the device with the mobile-mcp tools. Read the screen primarily with "
-        "mobile_list_elements_on_screen, which returns the accessibility tree (element "
-        "text, resource-id, class and coordinates); use mobile_take_screenshot only when "
-        "you need to see something the tree does not capture. To act, tap the "
-        "coordinates reported by mobile_list_elements_on_screen using "
-        "mobile_click_on_screen_at_coordinates; enter text with mobile_type_keys into the "
-        "focused field; scroll with mobile_swipe_on_screen; and use mobile_press_button "
-        "for BACK or ENTER (never HOME). Work methodically: read the screen, take one "
-        "action, then read the screen again and confirm it changed as expected. If an "
-        "action has no effect, do not repeat it blindly - try a different element, "
-        "scroll, or press BACK. Look specifically for crashes, error dialogs, blank or "
-        "stuck-loading screens, broken layouts, and unexpected behavior; if the app "
-        "crashes or freezes, capture the state and, if useful, inspect "
-        "mobile_list_crashes and mobile_get_device_logs. Finish with a concise, "
-        "structured report: the steps you performed, what you observed on each screen, "
-        "and a clear list of any bugs, crashes, errors or unexpected behavior (or state "
-        "clearly that you found none)."
+        "Reading the screen: call mobile_list_elements_on_screen. It returns the "
+        "accessibility tree where every element has a reference such as '@e12'. Use that "
+        "reference as the handle for everything. Avoid mobile_take_screenshot unless the "
+        "tree is empty or genuinely ambiguous - screenshots are large and slow you down."
+    )
+    parts.append(
+        "Acting: tap elements by their reference (ref='@e12'). Never pass an empty ref. "
+        "Only fall back to raw x/y coordinates if an element has no ref, and in that case "
+        "pass x and y and omit the ref argument entirely. Type into the focused field with "
+        "mobile_type_keys, scroll with mobile_swipe_on_screen, and use mobile_press_button "
+        "only for BACK or ENTER."
+    )
+    parts.append(
+        "Work methodically: read the tree, take ONE action, then read the tree again and "
+        "confirm the screen changed as expected. If an action errors or has no effect, do "
+        "not repeat it blindly - re-read the tree and choose a different element. Look for "
+        "crashes, error dialogs, blank or stuck-loading screens, broken layouts and "
+        "unexpected behaviour; if the app crashes use mobile_list_crashes and "
+        "mobile_get_device_logs."
+    )
+    parts.append(
+        "You MUST finish by calling the final_answer tool with a concise structured report: "
+        "(1) the task, (2) the key steps you actually performed, (3) what you observed, "
+        "(4) a clear verdict on whether the task succeeded, and (5) any bugs, crashes, "
+        "errors or unexpected behaviour found (or state that you found none). Never stop "
+        "mid-thought - always end with a final_answer call."
     )
     return " ".join(parts)
 
@@ -67,19 +86,112 @@ def mcp_server_parameters(mcp_command: str) -> StdioServerParameters:
     return StdioServerParameters(command=parts[0], args=parts[1:], env=dict(os.environ))
 
 
-def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
+def content_to_text(content) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        out = []
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") == "text" or "text" in part:
+                    out.append(str(part.get("text", "")))
+                else:
+                    out.append(f"<{part.get('type', 'non-text')}>")
+            else:
+                out.append(str(part))
+        return "\n".join(out)
+    return str(content)
+
+
+def truncate(text, limit) -> str:
+    text = text or ""
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f" ...[+{len(text) - limit} chars]"
+
+
+def render_trace(agent) -> str:
+    lines = []
+    n = 0
+    for step in agent.memory.steps:
+        model_output = getattr(step, "model_output", None)
+        tool_calls = getattr(step, "tool_calls", None)
+        observations = getattr(step, "observations", None)
+        error = getattr(step, "error", None)
+        if model_output is None and not tool_calls and error is None:
+            continue
+        n += 1
+        lines.append(f"**Step {n}**")
+        reasoning = content_to_text(model_output).strip()
+        if reasoning:
+            lines.append(f"- Thought: {truncate(reasoning, 1200)}")
+        for tc in tool_calls or []:
+            fn = tc.function
+            args = fn.arguments
+            args_s = args if isinstance(args, str) else str(args)
+            lines.append(f"- Action: `{fn.name}` {truncate(args_s, 300)}")
+        obs = content_to_text(observations).strip()
+        if obs:
+            lines.append(f"- Observation: {truncate(obs, 600)}")
+        if error is not None:
+            lines.append(f"- Error: {truncate(str(error), 300)}")
+        lines.append("")
+    if n == 0:
+        lines.append("(no steps recorded)")
+    return "\n".join(lines)
+
+
+def summarize(model, prompt, trace) -> str:
+    summary_prompt = (
+        "You are summarizing an automated Android QA run that did not reach a clean final "
+        "answer. From the trace below write a concise report: what was attempted, what "
+        "actually happened, whether the task succeeded, and any bugs or errors observed. "
+        "Be explicit about what was left unfinished.\n\n"
+        f"ORIGINAL TASK:\n{truncate(prompt, 1500)}\n\n"
+        f"TRACE:\n{truncate(trace, 9000)}"
+    )
+    try:
+        msg = model.generate([{"role": "user", "content": summary_prompt}])
+        return content_to_text(msg.content).strip()
+    except Exception as exc:  # noqa: BLE001
+        return f"(could not generate summary: {exc})"
+
+
+def run_agent(prompt, mcp_command, app_package):
     server_parameters = mcp_server_parameters(mcp_command)
+    model = build_model()
     with ToolCollection.from_mcp(
         server_parameters, trust_remote_code=True, structured_output=False
     ) as tools:
         agent = ToolCallingAgent(
             tools=[*tools.tools],
-            model=build_model(),
+            model=model,
             instructions=build_instructions(app_package),
             max_steps=int(os.environ.get("MAX_TURNS", "40")),
         )
-        result = agent.run(prompt)
-        return result if isinstance(result, str) else str(result)
+        result = agent.run(prompt, return_full_result=True)
+        trace = render_trace(agent)
+
+    state = getattr(result, "state", "success")
+    output = content_to_text(getattr(result, "output", "")).strip()
+    if state == "success" and output:
+        status = "COMPLETED"
+        report = output
+    else:
+        status = "INCOMPLETE"
+        report = summarize(model, prompt, trace)
+    return status, report, trace, getattr(result, "token_usage", None)
+
+
+def format_tokens(token_usage) -> str:
+    if not token_usage:
+        return "n/a"
+    try:
+        return f"{token_usage.input_tokens:,} in / {token_usage.output_tokens:,} out"
+    except Exception:  # noqa: BLE001
+        return str(token_usage)
 
 
 def main() -> None:
@@ -93,9 +205,20 @@ def main() -> None:
     print(f"[agent] MCP server: {mcp_command}", flush=True)
     print(f"[agent] target app: {app_package or '(not set)'}", flush=True)
 
-    output = run_agent(prompt, mcp_command, app_package)
+    status, report, trace, token_usage = run_agent(prompt, mcp_command, app_package)
+
+    report_md = (
+        f"**Status: {status}**  \n"
+        f"**Tokens: {format_tokens(token_usage)}**\n\n"
+        f"### Report\n\n{report}\n\n"
+        f"<details>\n<summary>Full step-by-step trace</summary>\n\n{trace}\n\n</details>\n"
+    )
+    with open("agent-report.md", "w") as f:
+        f.write(report_md)
+    with open("agent-status.txt", "w") as f:
+        f.write(status)
     print("\n=== AGENT FINAL OUTPUT ===\n", flush=True)
-    print(output)
+    print(report_md)
 
 
 if __name__ == "__main__":
