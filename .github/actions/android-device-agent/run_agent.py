@@ -69,7 +69,9 @@ def mcp_server_parameters(mcp_command: str) -> StdioServerParameters:
 
 def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
     server_parameters = mcp_server_parameters(mcp_command)
-    with ToolCollection.from_mcp(server_parameters, trust_remote_code=True) as tools:
+    with ToolCollection.from_mcp(
+        server_parameters, trust_remote_code=True, structured_output=False
+    ) as tools:
         agent = ToolCallingAgent(
             tools=[*tools.tools],
             model=build_model(),

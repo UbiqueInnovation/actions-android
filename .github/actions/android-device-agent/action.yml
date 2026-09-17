@@ -200,7 +200,10 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        python -m pip install "smolagents[openai,mcp]"
+        # smolagents[mcp] pulls mcp unpinned; mcp 2.x removed streamablehttp_client
+        # and its websocket client needs the 'websockets' package, which the extra
+        # omits. Pin mcp<2 and add websockets so mcpadapt imports cleanly.
+        python -m pip install "smolagents[openai,mcp]" "mcp<2" websockets
 
     - name: Run agent
       id: agent
@@ -290,7 +293,9 @@ runs:
 
         def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
             server_parameters = mcp_server_parameters(mcp_command)
-            with ToolCollection.from_mcp(server_parameters, trust_remote_code=True) as tools:
+            with ToolCollection.from_mcp(
+                server_parameters, trust_remote_code=True, structured_output=False
+            ) as tools:
                 agent = ToolCallingAgent(
                     tools=[*tools.tools],
                     model=build_model(),
