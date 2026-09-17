@@ -162,6 +162,26 @@ def wrap_observation(tool, limit) -> None:
     tool.forward = wrapped
 
 
+def sanitize_click_tool(tool) -> None:
+    """mobile-mcp's tap tool takes EITHER an element ref OR x/y coords. The model
+    sometimes sends a ref together with x=0,y=0, and the tool then taps (0,0) and
+    nothing happens. Normalise: a real ref wins (drop coords); otherwise drop the
+    empty ref so the coords are used."""
+    if getattr(tool, "name", "") != "mobile_click_on_screen_at_coordinates":
+        return
+    original = tool.forward
+
+    def wrapped(*args, **kwargs):
+        if kwargs.get("ref"):
+            kwargs.pop("x", None)
+            kwargs.pop("y", None)
+        else:
+            kwargs.pop("ref", None)
+        return original(*args, **kwargs)
+
+    tool.forward = wrapped
+
+
 def render_trace(agent) -> str:
     lines = []
     n = 0
@@ -218,6 +238,7 @@ def run_agent(prompt, mcp_command, app_package):
         wrapped = list(tools.tools)
         for t in wrapped:
             wrap_observation(t, max_obs)
+            sanitize_click_tool(t)
         agent = PrunedMemoryAgent(
             tools=wrapped,
             model=model,
