@@ -128,10 +128,9 @@ def render_trace(agent) -> str:
         if reasoning:
             lines.append(f"- Thought: {truncate(reasoning, 1200)}")
         for tc in tool_calls or []:
-            fn = tc.function
-            args = fn.arguments
+            args = tc.arguments
             args_s = args if isinstance(args, str) else str(args)
-            lines.append(f"- Action: `{fn.name}` {truncate(args_s, 300)}")
+            lines.append(f"- Action: `{tc.name}` {truncate(args_s, 300)}")
         obs = content_to_text(observations).strip()
         if obs:
             lines.append(f"- Observation: {truncate(obs, 600)}")
