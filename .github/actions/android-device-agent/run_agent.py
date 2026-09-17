@@ -26,33 +26,39 @@ def build_model() -> OpenAIChatCompletionsModel:
 
 def build_instructions(app_package: str) -> str:
     parts = [
-        "You are an autonomous Android QA tester. A single Android device is "
-        "connected over adb and the app under test is already installed."
+        "You are an autonomous Android QA engineer. A single Android device is already "
+        "connected over adb and the app under test is already installed. Test the app the "
+        "way a careful human tester would: exercise its main screens and primary user "
+        "flows, and actively look for problems."
     ]
     if app_package:
         parts.append(
-            f"The app under test has Android package name '{app_package}'. It has "
-            "been launched into the foreground. Interact ONLY with this app. If it "
-            f"is not in the foreground, bring it back (relaunch it by package name "
-            f"'{app_package}'). Do NOT open, launch, or interact with any other app."
+            f"The app under test has Android package name '{app_package}'. It has already "
+            "been launched into the foreground. Test ONLY this app. Before your first "
+            f"action, confirm it is in the foreground with mobile_get_foreground_app; if "
+            f"it is not, bring it back with mobile_launch_app using package "
+            f"'{app_package}'. Never open, launch, or interact with any other app, the "
+            "launcher, or the home screen, and do NOT press the HOME button (it leaves "
+            "the app under test)."
         )
     parts.append(
-        "Drive the device with the android-mcp tools. The reliable workflow is: "
-        "1) Call Snapshot to read the current screen. By default it returns a text "
-        "tree of the UI (element text, resource-id, class, and coordinates) - read "
-        "that text; you do not need a vision screenshot for most steps. "
-        "2) To act, prefer ClickBySelector using resourceId or text - it handles "
-        "layout reflow and is far more reliable than blind coordinate taps. Only "
-        "fall back to Click with coordinates from the Snapshot tree when no "
-        "selector matches. "
-        "3) After each action, call Snapshot again and confirm the screen changed "
-        "as expected. If an action has no effect, do NOT repeat it: use "
-        "WaitForElement for content that is still loading, press Back, or try a "
-        "different element. Use Press for hardware buttons (back, home, enter, "
-        "volume, ...) and Type to enter text. If the app shows a crash, a blank "
-        "screen, or a stuck loading screen, note it and stop guessing. Finish with "
-        "a concise written report of exactly what you did, what you observed, and "
-        "any crashes, errors, or unexpected behavior."
+        "Drive the device with the mobile-mcp tools. Read the screen primarily with "
+        "mobile_list_elements_on_screen, which returns the accessibility tree (element "
+        "text, resource-id, class and coordinates); use mobile_take_screenshot only when "
+        "you need to see something the tree does not capture. To act, tap the "
+        "coordinates reported by mobile_list_elements_on_screen using "
+        "mobile_click_on_screen_at_coordinates; enter text with mobile_type_keys into the "
+        "focused field; scroll with mobile_swipe_on_screen; and use mobile_press_button "
+        "for BACK or ENTER (never HOME). Work methodically: read the screen, take one "
+        "action, then read the screen again and confirm it changed as expected. If an "
+        "action has no effect, do not repeat it blindly - try a different element, "
+        "scroll, or press BACK. Look specifically for crashes, error dialogs, blank or "
+        "stuck-loading screens, broken layouts, and unexpected behavior; if the app "
+        "crashes or freezes, capture the state and, if useful, inspect "
+        "mobile_list_crashes and mobile_get_device_logs. Finish with a concise, "
+        "structured report: the steps you performed, what you observed on each screen, "
+        "and a clear list of any bugs, crashes, errors or unexpected behavior (or state "
+        "clearly that you found none)."
     )
     return " ".join(parts)
 
@@ -115,7 +121,7 @@ def mcp_params(mcp_command: str) -> dict:
 
 async def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
     async with MCPServerStdio(
-        name="android-mcp",
+        name="mobile-mcp",
         params=mcp_params(mcp_command),
     ) as server:
         agent = Agent(
@@ -133,7 +139,7 @@ async def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
 
 def main() -> None:
     prompt = os.environ.get("PROMPT", "")
-    mcp_command = os.environ.get("MCP_COMMAND", "uvx --python 3.13 android-mcp")
+    mcp_command = os.environ.get("MCP_COMMAND", "npx -y @mobilenext/mobile-mcp@latest")
     app_package = os.environ.get("APP_PACKAGE", "")
 
     if not prompt:
