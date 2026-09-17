@@ -4,12 +4,16 @@ from openai import OpenAI
 
 # Load environment variables
 GH_TOKEN = os.getenv("GH_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SELFHOSTED_LLM_API_KEY = os.getenv("SELFHOSTED_LLM_API_KEY")
+SELFHOSTED_LLM_BASE_URL = os.getenv("SELFHOSTED_LLM_BASE_URL", "").strip()
 PR_NUMBER = os.getenv("PR_NUMBER")
 REPO = os.getenv("GITHUB_REPOSITORY")
 
 # Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+client_kwargs = {"api_key": SELFHOSTED_LLM_API_KEY}
+if SELFHOSTED_LLM_BASE_URL:
+    client_kwargs["base_url"] = SELFHOSTED_LLM_BASE_URL
+client = OpenAI(**client_kwargs)
 
 # GitHub API headers
 headers = {

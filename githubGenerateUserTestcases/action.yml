@@ -5,9 +5,12 @@ inputs:
     type: string
     required: true
     description: The calling Github repository
-  OPENAI_API_KEY:
+  SELFHOSTED_LLM_API_KEY:
       required: true
-      description: Open AI API Key for test generation
+      description: Self-hosted LLM API key for test generation
+  SELFHOSTED_LLM_BASE_URL:
+      required: false
+      description: Base URL of the OpenAI-compatible endpoint for test generation (pass from a secret)
   GH_TOKEN:
       required: true
       description: github token for access
@@ -41,7 +44,8 @@ runs:
       shell: bash
       run: python ${{ github.action_path }}/generate-testcases.py
       env:
-        OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
+        SELFHOSTED_LLM_API_KEY: ${{ inputs.SELFHOSTED_LLM_API_KEY }}
+        SELFHOSTED_LLM_BASE_URL: ${{ inputs.SELFHOSTED_LLM_BASE_URL }}
         GH_TOKEN: ${{ inputs.GH_TOKEN }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY }}
