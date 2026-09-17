@@ -222,7 +222,7 @@ def run_agent(prompt, mcp_command, app_package):
             tools=wrapped,
             model=model,
             instructions=build_instructions(app_package),
-            max_steps=int(os.environ.get("MAX_TURNS", "50")),
+            max_steps=int(os.environ.get("MAX_TURNS", "80")),
         )
         result = agent.run(prompt, return_full_result=True)
         trace = render_trace(agent)
