@@ -25,6 +25,10 @@ inputs:
   apk-url:
     description: 'URL to download the APK to install on the device.'
     required: true
+  skip-install:
+    description: 'Skip installing the APK; assume the app is already installed on the device (useful for debugging).'
+    required: false
+    default: 'false'
   prompt:
     description: 'Instructions for the agent on what to do with the app.'
     required: true
@@ -137,6 +141,7 @@ runs:
         echo "App package name: ${pkg}"
 
     - name: Install app on device
+      if: inputs.skip-install != 'true'
       shell: bash
       env:
         APK_URL: ${{ inputs.apk-url }}

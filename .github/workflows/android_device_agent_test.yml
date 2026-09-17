@@ -28,8 +28,13 @@ on:
       mcp-command:
         type: string
         required: false
-        default: 'uvx --python 3.13 android-mcp'
+        default: 'npx -y @mobilenext/mobile-mcp@latest'
         description: 'Full command that launches the device-control MCP server.'
+      skip-install:
+        type: boolean
+        required: false
+        default: false
+        description: 'Skip installing the APK; assume the app is already installed on the device (useful for debugging).'
       tailscale-login-server:
         type: string
         required: false
@@ -86,4 +91,5 @@ jobs:
           selfhosted-llm-base-url: ${{ secrets.SELFHOSTED_LLM_BASE_URL }}
           model: ${{ inputs.model }}
           mcp-command: ${{ inputs.mcp-command }}
+          skip-install: ${{ inputs.skip-install }}
           keep-open-on-failure: ${{ inputs.keep-open-on-failure }}
