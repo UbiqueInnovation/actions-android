@@ -266,7 +266,24 @@ runs:
             def _prepare_completion_kwargs(self, *args, **kwargs):
                 if kwargs.get("tools_to_call_from"):
                     kwargs["tool_choice"] = "auto"
-                return super()._prepare_completion_kwargs(*args, **kwargs)
+                completion_kwargs = super()._prepare_completion_kwargs(*args, **kwargs)
+                # smolagents passes ReAct stop tokens ("Observation:", "Calling tools:")
+                # which can truncate a native tool-call response before the call is
+                # emitted, leaving content with no parseable tool call. Drop them.
+                completion_kwargs.pop("stop", None)
+                return completion_kwargs
+
+            def generate(self, *args, **kwargs):
+                msg = super().generate(*args, **kwargs)
+                tcs = getattr(msg, "tool_calls", None)
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                print(
+                    f"[raw] tool_calls={len(tcs) if tcs else 0} "
+                    f"finish={getattr(msg, 'finish_reason', None)} "
+                    f"content={content[:200]!r}",
+                    flush=True,
+                )
+                return msg
 
 
         class PrunedMemoryAgent(ToolCallingAgent):
