@@ -1,15 +1,12 @@
-import asyncio
 import os
 import shlex
 import sys
 
-from agents import Agent, Runner, RunHooks
-from agents.mcp import MCPServerStdio
-from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-from openai import AsyncOpenAI
+from mcp import StdioServerParameters
+from smolagents import OpenAIModel, ToolCallingAgent, ToolCollection
 
 
-def build_model() -> OpenAIChatCompletionsModel:
+def build_model() -> OpenAIModel:
     api_key = os.environ.get("SELFHOSTED_LLM_API_KEY", "")
     base_url = os.environ.get("SELFHOSTED_LLM_BASE_URL", "").strip()
     model_name = os.environ.get("MODEL", "default")
@@ -17,11 +14,11 @@ def build_model() -> OpenAIChatCompletionsModel:
     if not api_key:
         raise RuntimeError("SELFHOSTED_LLM_API_KEY is not set")
 
-    client = AsyncOpenAI(
+    return OpenAIModel(
+        model_id=model_name,
+        api_base=base_url if base_url else None,
         api_key=api_key,
-        base_url=base_url if base_url else None,
     )
-    return OpenAIChatCompletionsModel(model=model_name, openai_client=client)
 
 
 def build_instructions(app_package: str) -> str:
@@ -63,78 +60,24 @@ def build_instructions(app_package: str) -> str:
     return " ".join(parts)
 
 
-class LoggingHooks(RunHooks):
-    """Print each turn and tool call so a stuck/looping run is diagnosable."""
-
-    def __init__(self) -> None:
-        self._turn = 0
-
-    def _log(self, msg: str) -> None:
-        try:
-            print(msg, flush=True)
-        except Exception:  # noqa: BLE001 - logging must never break the run
-            pass
-
-    async def on_llm_start(self, context, agent, system_prompt, input_items) -> None:
-        self._turn += 1
-        self._log(f"[agent] turn {self._turn}: calling model")
-
-    async def on_llm_end(self, context, agent, response) -> None:
-        try:
-            for item in getattr(response, "output", []) or []:
-                t = getattr(item, "type", None)
-                if t in (
-                    "function_call",
-                    "computer_call",
-                    "mcp_call",
-                    "custom_tool_call",
-                    "tool_search_call",
-                ):
-                    name = getattr(item, "name", "?")
-                    args = getattr(item, "arguments", "") or getattr(item, "input", "")
-                    self._log(f"[agent]   tool_call: {name} {str(args)[:500]}")
-                elif t == "message":
-                    text = "".join(
-                        getattr(p, "text", "") for p in getattr(item, "content", []) or []
-                    )
-                    if text.strip():
-                        self._log(f"[agent]   assistant: {text.strip()[:500]}")
-        except Exception:  # noqa: BLE001
-            pass
-
-    async def on_tool_start(self, context, agent, tool) -> None:
-        self._log(f"[agent]   -> tool start: {getattr(tool, 'name', tool)}")
-
-    async def on_tool_end(self, context, agent, tool, result) -> None:
-        self._log(
-            f"[agent]   <- tool end: {getattr(tool, 'name', tool)} "
-            f"result={str(result)[:300]}"
-        )
-
-
-def mcp_params(mcp_command: str) -> dict:
+def mcp_server_parameters(mcp_command: str) -> StdioServerParameters:
     parts = shlex.split(mcp_command)
     if not parts:
         raise RuntimeError("MCP_COMMAND is empty")
-    return {"command": parts[0], "args": parts[1:]}
+    return StdioServerParameters(command=parts[0], args=parts[1:], env=dict(os.environ))
 
 
-async def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
-    async with MCPServerStdio(
-        name="mobile-mcp",
-        params=mcp_params(mcp_command),
-    ) as server:
-        agent = Agent(
-            name="android-tester",
-            instructions=build_instructions(app_package),
+def run_agent(prompt: str, mcp_command: str, app_package: str) -> str:
+    server_parameters = mcp_server_parameters(mcp_command)
+    with ToolCollection.from_mcp(server_parameters, trust_remote_code=True) as tools:
+        agent = ToolCallingAgent(
+            tools=[*tools.tools],
             model=build_model(),
-            mcp_servers=[server],
+            instructions=build_instructions(app_package),
+            max_steps=int(os.environ.get("MAX_TURNS", "40")),
         )
-        max_turns = int(os.environ.get("MAX_TURNS", "40"))
-        result = await Runner.run(
-            agent, prompt, max_turns=max_turns, hooks=LoggingHooks()
-        )
-        return result.final_output
+        result = agent.run(prompt)
+        return result if isinstance(result, str) else str(result)
 
 
 def main() -> None:
@@ -148,7 +91,7 @@ def main() -> None:
     print(f"[agent] MCP server: {mcp_command}", flush=True)
     print(f"[agent] target app: {app_package or '(not set)'}", flush=True)
 
-    output = asyncio.run(run_agent(prompt, mcp_command, app_package))
+    output = run_agent(prompt, mcp_command, app_package)
     print("\n=== AGENT FINAL OUTPUT ===\n", flush=True)
     print(output)
 
