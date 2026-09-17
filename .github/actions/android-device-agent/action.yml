@@ -210,6 +210,24 @@ runs:
         # omits. Pin mcp<2 and add websockets so mcpadapt imports cleanly.
         python -m pip install "smolagents[openai,mcp]" "mcp<2" websockets
 
+    - name: Check for npx (required by mobile-mcp)
+      id: npx
+      shell: bash
+      run: |
+        if command -v npx >/dev/null 2>&1; then
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          echo "npx already available: $(command -v npx) ($(npx --version 2>/dev/null))"
+        else
+          echo "present=false" >> "$GITHUB_OUTPUT"
+          echo "npx not found on PATH; installing Node.js for mobile-mcp"
+        fi
+
+    - name: Set up Node.js (for mobile-mcp)
+      if: steps.npx.outputs.present != 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
     - name: Run agent
       id: agent
       shell: bash
