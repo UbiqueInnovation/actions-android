@@ -1,0 +1,222 @@
+name: "Codex"
+description: "Run OpenAI Codex CLI with a Responses API proxy"
+
+inputs:
+  openai-api-key:
+    description: "OpenAI API key"
+    required: true
+
+  responses-api-endpoint:
+    description: "Optional full Responses API endpoint"
+    required: false
+    default: ""
+
+  prompt:
+    description: "Prompt for Codex"
+    required: true
+
+  model:
+    description: "Codex model"
+    required: false
+    default: ""
+
+  reasoning-effort:
+    description: "Model reasoning effort"
+    required: false
+    default: "high"
+
+  codex-version:
+    description: "Version of @openai/codex"
+    required: false
+    default: "latest"
+
+  working-directory:
+    description: "Working directory"
+    required: false
+    default: ""
+
+  sandbox:
+    description: "Codex sandbox mode"
+    required: false
+    default: "workspace-write"
+
+  approval-policy:
+    description: "Codex approval policy"
+    required: false
+    default: "never"
+
+  output-file:
+    description: "Optional file for the final Codex message"
+    required: false
+    default: ""
+
+outputs:
+  final-message:
+    description: "Final Codex message"
+    value: ${{ steps.codex.outputs.final-message }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: "24"
+
+    - name: Install Codex
+      shell: bash
+      env:
+        CODEX_VERSION: ${{ inputs.codex-version }}
+      run: |
+        set -euo pipefail
+
+        npm install -g \
+          "@openai/codex@${CODEX_VERSION}" \
+          "@openai/codex-responses-api-proxy@${CODEX_VERSION}"
+
+    - name: Prepare Responses API proxy
+      id: proxy-state
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        PROXY_DIR="$(mktemp -d "${RUNNER_TEMP}/codex-proxy-XXXXXX")"
+        SERVER_INFO_FILE="${PROXY_DIR}/server-info.json"
+
+        echo "proxy-dir=${PROXY_DIR}" >> "$GITHUB_OUTPUT"
+        echo "server-info-file=${SERVER_INFO_FILE}" >> "$GITHUB_OUTPUT"
+
+    - name: Start Responses API proxy
+      id: proxy
+      shell: bash
+      env:
+        PROXY_API_KEY: ${{ inputs.openai-api-key }}
+        UPSTREAM_URL: ${{ inputs.responses-api-endpoint }}
+        SERVER_INFO_FILE: ${{ steps.proxy-state.outputs.server-info-file }}
+      run: |
+        set -euo pipefail
+
+        args=(
+          codex-responses-api-proxy
+          --http-shutdown
+          --server-info "$SERVER_INFO_FILE"
+        )
+
+        if [ -n "$UPSTREAM_URL" ]; then
+          args+=(--upstream-url "$UPSTREAM_URL")
+        fi
+
+        (
+          exec env \
+            -u PROXY_API_KEY \
+            -u NODE_OPTIONS \
+            NODE_OPTIONS=--disable-sigusr1 \
+            "${args[@]}" <<< "$PROXY_API_KEY"
+        ) &
+
+        for _ in {1..30}; do
+          if [ -s "$SERVER_INFO_FILE" ]; then
+            break
+          fi
+
+          sleep 1
+        done
+
+        if [ ! -s "$SERVER_INFO_FILE" ]; then
+          echo "Responses API proxy did not start" >&2
+          exit 1
+        fi
+
+        PROXY_PORT="$(jq -r '.port' "$SERVER_INFO_FILE")"
+
+        if [ -z "$PROXY_PORT" ] || [ "$PROXY_PORT" = "null" ]; then
+          echo "Could not determine Responses API proxy port" >&2
+          exit 1
+        fi
+
+        echo "port=${PROXY_PORT}" >> "$GITHUB_OUTPUT"
+
+    - name: Run Codex
+      id: codex
+      shell: bash
+      env:
+        CODEX_PROMPT: ${{ inputs.prompt }}
+        CODEX_MODEL: ${{ inputs.model }}
+        CODEX_REASONING_EFFORT: ${{ inputs.reasoning-effort }}
+        CODEX_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        CODEX_SANDBOX: ${{ inputs.sandbox }}
+        CODEX_APPROVAL_POLICY: ${{ inputs.approval-policy }}
+        CODEX_OUTPUT_FILE: ${{ inputs.output-file }}
+        PROXY_PORT: ${{ steps.proxy.outputs.port }}
+      run: |
+        set -euo pipefail
+
+        WORKDIR="${CODEX_WORKING_DIRECTORY:-$GITHUB_WORKSPACE}"
+        FINAL_MESSAGE_FILE="$(mktemp "${RUNNER_TEMP}/codex-final-XXXXXX")"
+
+        args=(
+          codex
+          exec
+          --ephemeral
+          --cd "$WORKDIR"
+          --output-last-message "$FINAL_MESSAGE_FILE"
+          -c "model_providers.openai-proxy={ name = \"OpenAI Proxy\", base_url = \"http://127.0.0.1:${PROXY_PORT}/v1\", wire_api = \"responses\" }"
+          -c 'model_provider="openai-proxy"'
+          -c "approval_policy=\"${CODEX_APPROVAL_POLICY}\""
+        )
+
+        if [ -n "$CODEX_SANDBOX" ]; then
+          args+=(--sandbox "$CODEX_SANDBOX")
+        fi
+
+        if [ -n "$CODEX_MODEL" ]; then
+          args+=(--model "$CODEX_MODEL")
+        fi
+
+        if [ -n "$CODEX_REASONING_EFFORT" ]; then
+          args+=(
+            -c
+            "model_reasoning_effort=\"${CODEX_REASONING_EFFORT}\""
+          )
+        fi
+
+        args+=("$CODEX_PROMPT")
+
+        "${args[@]}"
+
+        if [ -n "$CODEX_OUTPUT_FILE" ]; then
+          mkdir -p "$(dirname "$CODEX_OUTPUT_FILE")"
+          cp "$FINAL_MESSAGE_FILE" "$CODEX_OUTPUT_FILE"
+        fi
+
+        DELIMITER="CODEX_OUTPUT_${RANDOM}_${RANDOM}"
+
+        {
+          echo "final-message<<${DELIMITER}"
+          cat "$FINAL_MESSAGE_FILE"
+          echo
+          echo "${DELIMITER}"
+        } >> "$GITHUB_OUTPUT"
+
+        rm -f "$FINAL_MESSAGE_FILE"
+
+    - name: Stop Responses API proxy
+      if: always()
+      shell: bash
+      env:
+        PROXY_PORT: ${{ steps.proxy.outputs.port }}
+        PROXY_DIR: ${{ steps.proxy-state.outputs.proxy-dir }}
+      run: |
+        if [ -n "${PROXY_PORT:-}" ]; then
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            "http://127.0.0.1:${PROXY_PORT}/shutdown" \
+            || true
+        fi
+
+        if [ -n "${PROXY_DIR:-}" ]; then
+          rm -rf "$PROXY_DIR"
+        fi

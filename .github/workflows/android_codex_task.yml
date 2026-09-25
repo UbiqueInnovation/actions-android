@@ -95,12 +95,11 @@ jobs:
 
       - name: Run Codex
         id: run_codex
-        uses: openai/codex-action@v1.11
+        uses: UbiqueInnovation/actions-android/.github/actions/codex@feature/codex-actions
         with:
           openai-api-key: ${{ secrets.LITE_LLM_API_KEY }}
           responses-api-endpoint: ${{ secrets.LITE_LLM_RESPONSES_API_URL }}
           model: "default"
-          permission-profile: ":workspace"
           prompt: |
             Implement the following task:
 
