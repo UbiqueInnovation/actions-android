@@ -110,6 +110,7 @@ jobs:
             - implement the requested change
             - add/update tests where appropriate
             - do not run gradle builds or tests, it will fail in an offline environment
+            - do not modify any workflow files
             - do not commit anything
             - do not create branches
             - do not push anything
