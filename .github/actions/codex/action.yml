@@ -94,8 +94,15 @@ runs:
         PROXY_API_KEY: ${{ inputs.openai-api-key }}
         UPSTREAM_URL: ${{ inputs.responses-api-endpoint }}
         SERVER_INFO_FILE: ${{ steps.proxy-state.outputs.server-info-file }}
+        PROXY_DIR: ${{ steps.proxy-state.outputs.proxy-dir }}
       run: |
         set -euo pipefail
+
+        PROXY_LOG="${PROXY_DIR}/proxy.log"
+        API_KEY_FILE="${PROXY_DIR}/api-key"
+
+        printf '%s\n' "$PROXY_API_KEY" > "$API_KEY_FILE"
+        chmod 600 "$API_KEY_FILE"
 
         args=(
           codex-responses-api-proxy
@@ -112,30 +119,42 @@ runs:
             -u PROXY_API_KEY \
             -u NODE_OPTIONS \
             NODE_OPTIONS=--disable-sigusr1 \
-            "${args[@]}" <<< "$PROXY_API_KEY"
+            "${args[@]}" \
+            < "$API_KEY_FILE" \
+            > "$PROXY_LOG" \
+            2>&1
         ) &
 
-        for _ in {1..30}; do
+        PROXY_LAUNCH_PID=$!
+
+        # Important: remove API key as soon as proxy consumed stdin.
+        for _ in {1..50}; do
           if [ -s "$SERVER_INFO_FILE" ]; then
             break
           fi
 
-          sleep 1
+          if ! kill -0 "$PROXY_LAUNCH_PID" 2>/dev/null; then
+            echo "Responses API proxy terminated during startup:"
+            cat "$PROXY_LOG" || true
+            rm -f "$API_KEY_FILE"
+            exit 1
+          fi
+
+          sleep 0.2
         done
 
+        rm -f "$API_KEY_FILE"
+
         if [ ! -s "$SERVER_INFO_FILE" ]; then
-          echo "Responses API proxy did not start" >&2
+          echo "Responses API proxy did not start:"
+          cat "$PROXY_LOG" || true
           exit 1
         fi
 
         PROXY_PORT="$(jq -r '.port' "$SERVER_INFO_FILE")"
 
-        if [ -z "$PROXY_PORT" ] || [ "$PROXY_PORT" = "null" ]; then
-          echo "Could not determine Responses API proxy port" >&2
-          exit 1
-        fi
-
         echo "port=${PROXY_PORT}" >> "$GITHUB_OUTPUT"
+        echo "log=${PROXY_LOG}" >> "$GITHUB_OUTPUT"
 
     - name: Run Codex
       id: codex
