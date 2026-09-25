@@ -1,0 +1,191 @@
+name: Run a gradle task
+
+on:
+  workflow_call:
+    inputs:
+      task:
+        type: string
+        required: true
+      concurrency-group:
+        type: string
+        required: false
+        default: ${{ github.workflow }}-${{ github.ref }}
+      working-directory:
+        type: string
+        default: './'
+        required: false
+        description: 'The working directory of the script, for projects where the gradle project is not in the root folder. Must end with a slash.'
+      runs-on:
+        type: string
+        required: false
+        default: '["k8s-runner"]'
+      android-image-version:
+        type: string
+        required: false
+        default: '2026.03.1-ndk'
+        description: The Android image version to use. Default is 2026.03.1-ndk.
+      use-git-lfs:
+        required: false
+        default: false
+        type: boolean
+        description: 'Use git lfs during repository checkout'
+      jdk:
+        type: string
+        required: false
+        default: '21'
+        description: 'The JDK version to use. Default is 21.'
+      pre-build-script:
+        required: false
+        type: string
+        default: ''
+        description: 'Bash script that is executed before the actual build'
+    secrets:
+      ANDROID_JENKINS_PAT:
+        required: false
+        description: 'Optional PAT for checking out private repositories or submodules. Falls back to the default GITHUB_TOKEN if not set.'
+      UB_ARTIFACTORY_URL:
+        required: true
+      UB_ARTIFACTORY_REPO_ANDROID:
+        required: true
+      UB_ARTIFACTORY_USER:
+        required: true
+      UB_ARTIFACTORY_PASSWORD:
+        required: true
+      LITE_LLM_API_KEY:
+        required: true
+      LITE_LLM_RESPONSES_API_URL:
+        required: true
+
+jobs:
+  codex:
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=false"
+      CMAKE_BUILD_PARALLEL_LEVEL: 8
+      "ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy": "in-process"
+    container:
+      image: cimg/android:${{ inputs.android-image-version }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    timeout-minutes: 60
+    concurrency:
+      # Cancel any previous runs that have not yet finished for the configured concurrency group
+      group: ${{ inputs.concurrency-group }}
+      cancel-in-progress: true
+    steps:
+      - name: Setup Android environment
+        uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
+        with:
+          checkout-token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
+          use-git-lfs: ${{ inputs.use-git-lfs }}
+          jdk: ${{ inputs.jdk }}
+          setup-rust: 'false'
+          gradle-cache-job-id: '${{ inputs.jdk }}-${{ inputs.task }}'
+          pre-build-script: ${{ inputs.pre-build-script }}
+
+      - name: Run Gradle task
+        run: ./gradlew assembleDebug --no-daemon -x test
+        env:
+          UB_ARTIFACTORY_URL: ${{ secrets.UB_ARTIFACTORY_URL }}
+          UB_ARTIFACTORY_REPO_ANDROID: ${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}
+          UB_ARTIFACTORY_URL_ANDROID: '${{ secrets.UB_ARTIFACTORY_URL }}${{ secrets.UB_ARTIFACTORY_REPO_ANDROID }}'
+          UB_ARTIFACTORY_USER: ${{ secrets.UB_ARTIFACTORY_USER }}
+          UB_ARTIFACTORY_PASSWORD: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+
+      - name: Run Codex
+        id: run_codex
+        uses: openai/codex-action@v1.11
+        with:
+          openai-api-key: ${{ secrets.LITE_LLM_API_KEY }}
+          responses-api-endpoint: ${{ secrets.LITE_LLM_RESPONSES_API_URL }}
+          model: "default"
+          permission-profile: ":workspace"
+          prompt: |
+            Implement the following task:
+
+            ${{ inputs.task }}
+
+            Requirements:
+            - inspect the existing code first
+            - implement the requested change
+            - add/update tests where appropriate
+            - run ./gradlew builds and tests with offline arguments, the dependencies are already cached in the workspace
+            - do not commit anything
+            - do not create branches
+            - do not push anything
+            - do not create a pull request
+            
+            Finish after summarizing your changes.
+
+      - name: Create patch
+        id: diff
+        run: |
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --cached --binary > codex.patch
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload patch
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-changes
+          path: codex.patch
+          retention-days: 1
+
+  create-pr:
+    needs: codex
+
+    if: needs.codex.outputs.has_changes == 'true'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download Codex changes
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-changes
+
+      - name: Apply Codex changes
+        run: |
+          git apply --index --3way codex.patch
+
+      - name: Create Pull Request
+        id: pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ github.token }}
+
+          branch: codex/${{ github.run_id }}
+
+          commit-message: |
+            Implement Codex task
+
+          title: |
+            Codex: ${{ inputs.task }}
+
+          body: |
+            Automated change created by the internal Codex coding agent.
+
+            Task:
+
+            > ${{ inputs.task }}
+
+            The code changes were generated by Codex.
+            Branch creation, commit, push and PR creation were performed
+            separately by GitHub Actions.
+
+          delete-branch: true
