@@ -140,8 +140,6 @@ jobs:
   create-pr:
     needs: codex
 
-    if: needs.codex.outputs.has_changes == 'true'
-
     runs-on: ubuntu-latest
 
     permissions:
