@@ -109,7 +109,7 @@ jobs:
             - inspect the existing code first
             - implement the requested change
             - add/update tests where appropriate
-            - run ./gradlew builds and tests with offline arguments, the dependencies are already cached in the workspace
+            - do not run gradle builds or tests, it will fail in an offline environment
             - do not commit anything
             - do not create branches
             - do not push anything
