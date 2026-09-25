@@ -1,0 +1,34 @@
+{
+	"type": "object",
+	"additionalProperties": false,
+	"required": ["findings"],
+	"properties": {
+		"findings": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["path", "line", "side", "body"],
+				"properties": {
+					"path": {
+						"type": "string",
+						"description": "Repository-relative file path, exactly as in the PR diff."
+					},
+					"line": {
+						"type": "integer",
+						"description": "One-based file line number, not a diff position."
+					},
+					"side": {
+						"type": "string",
+						"enum": ["LEFT", "RIGHT"],
+						"description": "LEFT for deleted lines; RIGHT for added or context lines."
+					},
+					"body": {
+						"type": "string",
+						"description": "Concise Markdown explaining the bug, its impact, and a suggested fix."
+					}
+				}
+			}
+		}
+	}
+}

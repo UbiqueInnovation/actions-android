@@ -82,8 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # Explicitly check out the PR's merge commit.
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          repository: UbiqueInnovation/actions-android
+          ref: feature/codex-actions
           persist-credentials: false
 
       - name: Format review as JSON
