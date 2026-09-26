@@ -167,7 +167,7 @@ jobs:
         id: pr
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
 
           branch: codex/${{ github.run_id }}
 
