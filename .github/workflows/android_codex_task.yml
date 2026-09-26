@@ -150,6 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          token: ${{ secrets.ANDROID_JENKINS_PAT || github.token }}
           fetch-depth: 0
 
       - name: Download Codex changes
