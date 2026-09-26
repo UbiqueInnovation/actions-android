@@ -161,6 +161,7 @@ jobs:
       - name: Apply Codex changes
         run: |
           git apply --index --3way codex.patch
+          rm codex.patch
 
       - name: Create Pull Request
         id: pr
