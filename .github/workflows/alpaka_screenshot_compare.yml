@@ -79,10 +79,10 @@ jobs:
               diff=$(echo "$body" | jq -r '.diffScreenshots')
           
               if (( total == 0 && ( referenceCount > 0 || compareCount == 0 ) )); then
-                BODY+="️&#x2757; No screenshots found! "
-                if (( attempt < 30 )); then
-                  BODY+="Trying again in a minute..."
-                fi
+                echo "No screenshots found yet (attempt $attempt/60)."
+                retry=true
+              elif [ -z "$reportUrl" ] || [ "$reportUrl" = "null" ]; then
+                echo "Screenshot report not available yet (attempt $attempt/60)."
                 retry=true
               elif (( diff > 0 )); then
                 BODY+="&#x274C; Screenshot differences found!"
@@ -93,12 +93,15 @@ jobs:
               BODY+="<br/><a href='$reportUrl'>Screenshot Report</a>"
               BODY+="<br/>Compared Screenshots Total: $total, Diff: $diff"
             else
-              echo "❗Resource not found (404)"
-              BODY+="️&#x2757; Reference or compare build not found! "
-              if (( attempt < 30 )); then
-                BODY+="Trying again in a minute..."
-              fi
+              echo "Screenshot comparison not available yet (HTTP $http_status, attempt $attempt/60)."
               retry=true
+            fi
+
+            if [ "$retry" = true ]; then
+              if (( attempt < 60 )); then
+                sleep 60
+              fi
+              continue
             fi
           
             # nach bestehendem sticky-Kommentar suchen
@@ -114,11 +117,7 @@ jobs:
               gh pr comment $PR_NUMBER --body "$BODY"
             fi
           
-            if [ "$retry" = true ]; then
-              sleep 60
-            else
-              break
-            fi
+            break
           
           done
           
