@@ -48,10 +48,9 @@ jobs:
           lfs: ${{ inputs.use-git-lfs }}
           fetch-depth: 10
 
-      - name: Create or update comment
+      - name: Wait for screenshot report
+        id: comparison
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_BRANCH_NAME: ${{ github.event.pull_request.base.ref }}
           COMMIT_HASH: ${{ github.event.pull_request.head.sha }}
           FLAVOR: ${{ inputs.flavor }}
@@ -65,7 +64,7 @@ jobs:
             ENCODED_BRANCH=$(jq -rn --arg v "$BASE_BRANCH_NAME" '$v|@uri')
             curl_url="https://alpaka.ubique.ch/v1/screenshots/diff?referenceBranch=$ENCODED_BRANCH&flavor=$FLAVOR&compareCommitHash=$COMMIT_HASH"
             echo "Running: $curl_url"
-            response=$(curl -s -w "%{http_code}" -o tmp_response.json "$curl_url")
+            response=$(curl -s --connect-timeout 10 --max-time 30 -w "%{http_code}" -o tmp_response.json "$curl_url")
             http_status="${response: -3}"
             body=$(cat tmp_response.json)
             retry=false
@@ -104,25 +103,50 @@ jobs:
               continue
             fi
           
-            # nach bestehendem sticky-Kommentar suchen
-            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
-              --jq '.[] | select(.body|contains("<!-- sticky:screenshot-status -->")) | .id')
-          
-            if [ -n "$COMMENT_ID" ]; then
-              echo "Updating existing comment $COMMENT_ID"
-              gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
-                -X PATCH -f body="$BODY"
-            else
-              echo "Creating new comment"
-              gh pr comment $PR_NUMBER --body "$BODY"
-            fi
-          
             break
           
           done
+
+          if [ "$retry" = true ]; then
+            BODY="<!-- sticky:screenshot-status --><h1>Screenshot Diff Report</h1>"
+            BODY+="&#x274C; Timed out waiting for the screenshot report after 60 attempts."
+          fi
+
+          COMMENT_FILE="$RUNNER_TEMP/screenshot-comment.md"
+          printf '%s\n' "$BODY" > "$COMMENT_FILE"
+          echo "comment_file=$COMMENT_FILE" >> "$GITHUB_OUTPUT"
           
           if [ "$success" = true ]; then
             exit 0
           else
             exit 1
+          fi
+
+      - name: Create or update comment
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMENT_FILE: ${{ steps.comparison.outputs.comment_file }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ -n "$COMMENT_FILE" ] && [ -f "$COMMENT_FILE" ]; then
+            BODY=$(cat "$COMMENT_FILE")
+          else
+            BODY="<!-- sticky:screenshot-status --><h1>Screenshot Diff Report</h1>"
+            BODY+="&#x274C; Screenshot comparison failed or timed out before a report was available."
+          fi
+          BODY+="<br/><a href='$RUN_URL'>Workflow run</a>"
+
+          COMMENT_ID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.body|contains("<!-- sticky:screenshot-status -->")) | .id')
+
+          if [ -n "$COMMENT_ID" ]; then
+            echo "Updating existing comment $COMMENT_ID"
+            gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID" \
+              -X PATCH -f body="$BODY"
+          else
+            echo "Creating new comment"
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
           fi
