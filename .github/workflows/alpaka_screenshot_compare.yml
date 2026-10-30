@@ -58,6 +58,7 @@ jobs:
         run: |
           success=false
           for attempt in {1..60}; do
+            attempt_started=$SECONDS
 
             BODY="<!-- sticky:screenshot-status --><h1>Screenshot Diff Report</h1>"
           
@@ -101,8 +102,10 @@ jobs:
             fi
 
             if [ "$retry" = true ]; then
-              if (( attempt < 60 )); then
-                sleep 60
+              # Keep attempts one minute apart, including request and processing time.
+              wait_seconds=$((60 - (SECONDS - attempt_started)))
+              if (( attempt < 60 && wait_seconds > 0 )); then
+                sleep "$wait_seconds"
               fi
               continue
             fi
