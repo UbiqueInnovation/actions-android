@@ -14,6 +14,7 @@ Reusable GitHub Actions workflows for Android (and multiplatform) projects.
 | `multiplatform_library_artifactory.yml` | Build and publish a multiplatform library to Artifactory |
 | `alpaka_screenshot_compare.yml` | Screenshot comparison for pull requests |
 | `github_generate_manual_user_testcases.yml` | Generate test cases for a PR |
+| `android_device_agent_test.yml` | Run an LLM agent against a real device over Tailscale + adb + mobile-mcp |
 
 ## Usage
 

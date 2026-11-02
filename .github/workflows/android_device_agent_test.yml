@@ -1,0 +1,91 @@
+name: Android Device Agent Test
+
+on:
+  workflow_call:
+    inputs:
+      device-address:
+        type: string
+        required: true
+        description: 'Tailscale IP or hostname of the Android device under test.'
+      adb-port:
+        type: string
+        required: false
+        default: '5555'
+        description: 'TCP port the device is listening on for adb (adb tcpip).'
+      apk-url:
+        type: string
+        required: true
+        description: 'URL to download the APK to install on the device.'
+      prompt:
+        type: string
+        required: true
+        description: 'Instructions for the agent on what to do with the app.'
+      model:
+        type: string
+        required: false
+        default: 'default'
+        description: 'Model name to use for the agent.'
+      mcp-command:
+        type: string
+        required: false
+        default: 'npx -y @mobilenext/mobile-mcp@latest'
+        description: 'Full command that launches the device-control MCP server.'
+      skip-install:
+        type: boolean
+        required: false
+        default: false
+        description: 'Skip installing the APK; assume the app is already installed on the device (useful for debugging).'
+      tailscale-login-server:
+        type: string
+        required: false
+        default: 'https://headscale.ubique.rocks'
+        description: 'Headscale/Tailscale control server URL.'
+      android-image-version:
+        type: string
+        required: false
+        default: '2026.03.1-ndk'
+        description: 'The Android image version to use. Default is 2026.03.1-ndk.'
+      keep-open-on-failure:
+        type: boolean
+        required: false
+        default: false
+        description: 'Keep the runner alive on failure for debugging.'
+    secrets:
+      TAILSCALE_TESTING_AGENT_AUTH_KEY:
+        required: true
+      SELFHOSTED_LLM_API_KEY:
+        required: true
+      SELFHOSTED_LLM_BASE_URL:
+        required: true
+      ADB_KEY:
+        required: true
+
+jobs:
+  device-agent:
+    name: Device agent test
+    runs-on: k8s-runner-small
+    container:
+      image: cimg/android:${{ inputs.android-image-version }}
+    timeout-minutes: 60
+    concurrency:
+      # Cancel any previous runs that have not yet finished for this workflow and git ref
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Run Android device agent
+        id: agent
+        uses: UbiqueInnovation/actions-android/.github/actions/android-device-agent@feature/android-device-agent-test
+        with:
+          tailscale-auth-key: ${{ secrets.TAILSCALE_TESTING_AGENT_AUTH_KEY }}
+          tailscale-login-server: ${{ inputs.tailscale-login-server }}
+          device-address: ${{ inputs.device-address }}
+          adb-port: ${{ inputs.adb-port }}
+          adb-key: ${{ secrets.ADB_KEY }}
+          apk-url: ${{ inputs.apk-url }}
+          prompt: ${{ inputs.prompt }}
+          selfhosted-llm-api-key: ${{ secrets.SELFHOSTED_LLM_API_KEY }}
+          selfhosted-llm-base-url: ${{ secrets.SELFHOSTED_LLM_BASE_URL }}
+          model: ${{ inputs.model }}
+          mcp-command: ${{ inputs.mcp-command }}
+          skip-install: ${{ inputs.skip-install }}
+          keep-open-on-failure: ${{ inputs.keep-open-on-failure }}
