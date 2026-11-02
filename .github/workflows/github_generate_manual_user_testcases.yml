@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Generate and Comment Test Cases
-        uses: UbiqueInnovation/actions-android/githubGenerateUserTestcases@main
+        uses: $/githubGenerateUserTestcases
         with:
           GITHUB_REPOSITORY: ${{ inputs.github-repository }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

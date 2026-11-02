@@ -41,7 +41,7 @@ runs:
         java-version: ${{ inputs.jdk }}
 
     - name: Setup Gradle Cache
-      uses: UbiqueInnovation/actions-android/.github/actions/gradle-cache-setup@v2
+      uses: $/.github/actions/gradle-cache-setup
       with:
         job-id: ${{ inputs.gradle-cache-job-id }}
 
