@@ -48,7 +48,7 @@ runs:
   using: composite
   steps:
     - name: Setup Android environment
-      uses: UbiqueInnovation/actions-android/.github/actions/android-base-setup@v2
+      uses: $/.github/actions/android-base-setup
       with:
         checkout-token: ${{ inputs.checkout-token }}
         use-git-lfs: ${{ inputs.use-git-lfs }}

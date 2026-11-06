@@ -104,7 +104,7 @@ jobs:
     steps:
       - name: Setup Android app build environment
         id: setup
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
+        uses: $/.github/actions/android-app-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}
@@ -167,7 +167,7 @@ jobs:
     steps:
       - name: Setup Android app build environment
         id: setup
-        uses: UbiqueInnovation/actions-android/.github/actions/android-app-setup@v2
+        uses: $/.github/actions/android-app-setup
         with:
           checkout-token: ${{ secrets.ANDROID_JENKINS_PAT }}
           use-git-lfs: ${{ inputs.use-git-lfs }}

@@ -55,5 +55,6 @@ Breaking changes are only introduced in new major versions (`v3`, etc.), so `@v2
 
 ## Development Notes
 
-- The [internal composite actions](.github/actions) are referenced using the major tag `vX`, thus they must not receive any breaking changes, see also [Issue 70](https://github.com/UbiqueInnovation/actions-android/issues/70).
+- Same-repository actions, including the [internal composite actions](.github/actions), use [self-repository references](https://github.blog/changelog/2026-07-30-reference-same-repository-actions-with-self-repository-syntax/) such as `uses: $/.github/actions/android-base-setup`. These resolve at the referencing workflow or action's exact commit, keeping internal dependencies consistent even when callers pin a full commit SHA. Keep public workflow and action interfaces compatible within a major version.
+- Self-repository references require GitHub Actions runner **2.336.0 or newer**, including on self-hosted runners such as `k8s-runner`. They do not require a checkout to resolve actions; existing checkout steps are still needed to fetch the consuming project's source.
 - Publish a new version by creating a [Release](https://github.com/UbiqueInnovation/actions-android/releases) with the tag `vX.Y.Z`. The floating major tag `vX` will be [updated automatically](https://github.com/UbiqueInnovation/actions-android/actions/workflows/_release_major.yml).
