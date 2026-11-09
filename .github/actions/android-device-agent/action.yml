@@ -1,0 +1,603 @@
+name: Android Device Agent
+description: >
+  Connects to a real Android device over Tailscale + adb, installs a built APK,
+  and runs an LLM agent (driving the device via the mobile-mcp MCP server)
+  against it with a given prompt, returning the agent's output.
+
+inputs:
+  tailscale-auth-key:
+    description: 'Tailscale/Headscale auth key (store as a secret).'
+    required: true
+  tailscale-login-server:
+    description: 'Headscale/Tailscale control server URL.'
+    required: false
+    default: 'https://headscale.ubique.rocks'
+  device-address:
+    description: 'Tailscale IP or hostname of the Android device under test.'
+    required: true
+  adb-port:
+    description: 'TCP port the device is listening on for adb (adb tcpip).'
+    required: false
+    default: '5555'
+  adb-key:
+    description: 'Pre-authorized adb private key (adbkey) for authenticating to the device (store as a secret).'
+    required: true
+  apk-url:
+    description: 'URL to download the APK to install on the device.'
+    required: true
+  skip-install:
+    description: 'Skip installing the APK; assume the app is already installed on the device (useful for debugging).'
+    required: false
+    default: 'false'
+  prompt:
+    description: 'Instructions for the agent on what to do with the app.'
+    required: true
+  selfhosted-llm-api-key:
+    description: 'OpenAI (or compatible) API key for the agent model.'
+    required: true
+  selfhosted-llm-base-url:
+    description: 'Base URL of the OpenAI-compatible endpoint for the agent model (pass from a secret).'
+    required: true
+  model:
+    description: 'Model name to use for the agent.'
+    required: false
+    default: 'default'
+  mcp-command:
+    description: 'Full command that launches the device-control MCP server (default: mobile-mcp via npx).'
+    required: false
+    default: 'npx -y @mobilenext/mobile-mcp@latest'
+  keep-open-on-failure:
+    description: 'Keep the runner alive on failure for debugging.'
+    required: false
+    default: 'false'
+
+outputs:
+  agent-output:
+    description: 'The final output text produced by the agent.'
+    value: ${{ steps.publish.outputs.agent-output }}
+
+runs:
+  using: composite
+  steps:
+    - name: Connect to Tailscale
+      uses: UbiqueInnovation/tailscale-action@main
+      with:
+        auth-key: ${{ inputs.tailscale-auth-key }}
+        login-server: ${{ inputs.tailscale-login-server }}
+        extra-login-args: '--accept-dns --ssh'
+
+    - name: Verify Tailscale is up
+      shell: bash
+      run: |
+        tscale status
+        ip4=$(tscale ip -4)
+        if [ -z "$ip4" ]; then
+          echo "Tailscale did not obtain a tailnet IPv4 address after login"
+          exit 1
+        fi
+        echo "Tailscale tailnet IPv4: ${ip4}"
+
+    - name: Install ADB authentication key
+      shell: bash
+      env:
+        ADB_KEY: ${{ inputs.adb-key }}
+      run: |
+        set -euo pipefail
+        if [ -z "${ADB_KEY}" ]; then
+          echo "::error::adb-key is required (pass the pre-authorized adb private key as a secret)"
+          exit 1
+        fi
+        mkdir -p "${HOME}/.android"
+        printf '%s\n' "${ADB_KEY}" > "${HOME}/.android/adbkey"
+        chmod 600 "${HOME}/.android/adbkey"
+
+    - name: Connect to device via adb
+      shell: bash
+      env:
+        DEVICE: ${{ inputs.device-address }}
+        PORT: ${{ inputs.adb-port }}
+      run: |
+        set -euo pipefail
+        # Restart the adb server so it loads the key we just installed.
+        adb kill-server 2>/dev/null || true
+        adb connect "${DEVICE}:${PORT}"
+        adb devices
+        if ! adb devices | grep -qE "^[[:space:]]*[^[:space:]]+[[:space:]]+device[[:space:]]*$"; then
+          echo "No adb device in 'device' state after connect to ${DEVICE}:${PORT}"
+          adb devices
+          echo "Hint: the device must already trust this adb key (its public key installed in /data/misc/adb/adb_keys)."
+          exit 1
+        fi
+
+    - name: Download APK
+      shell: bash
+      env:
+        APK_URL: ${{ inputs.apk-url }}
+      run: |
+        curl -fL --retry 3 -o app.apk "$APK_URL"
+        ls -l app.apk
+
+    - name: Resolve app package name
+      id: pkg
+      shell: bash
+      run: |
+        set -euo pipefail
+        AAPT="$(command -v aapt || true)"
+        [ -z "${AAPT}" ] && AAPT="$(command -v aapt2 || true)"
+        [ -z "${AAPT}" ] && AAPT="$(ls -1 "${ANDROID_HOME:-/opt/android/sdk}"/build-tools/*/aapt* 2>/dev/null | sort -V | tail -n1 || true)"
+        if [ -z "${AAPT}" ]; then
+          echo "Could not find aapt/aapt2 to inspect the APK"
+          exit 1
+        fi
+        echo "Using: ${AAPT}"
+        badging="$("${AAPT}" dump badging app.apk 2>/dev/null || true)"
+        pkg="$(printf '%s\n' "${badging}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n1)"
+        if [ -z "${pkg}" ]; then
+          echo "Could not resolve package name from app.apk (aapt badging head below)"
+          printf '%s\n' "${badging}" | head -n 20 || true
+          exit 1
+        fi
+        echo "package-name=${pkg}" >> "${GITHUB_OUTPUT}"
+        echo "App package name: ${pkg}"
+
+    - name: Install app on device
+      if: inputs.skip-install != 'true'
+      shell: bash
+      env:
+        APK_URL: ${{ inputs.apk-url }}
+      run: |
+        set -euo pipefail
+        DEV_APK="/data/local/tmp/app.apk"
+        expected="$(wc -c < app.apk | tr -d ' ')"
+
+        # Streaming the APK from the runner to the device over the Tailscale adb
+        # link is slow (~100 KB/s on a relayed tailnet). Prefer letting the device
+        # download the APK itself over its own (much faster) network, then install
+        # the local file with `pm install`. Fall back to `adb install` (push over
+        # the adb link) if the device has no usable HTTP client.
+        download_on_device() {
+          if adb shell 'command -v curl >/dev/null 2>&1'; then
+            echo "Downloading APK on-device with curl ..."
+            adb shell "curl -fsSL --retry 3 -o '${DEV_APK}' '${APK_URL}'" || return 1
+          elif adb shell 'command -v wget >/dev/null 2>&1'; then
+            echo "Downloading APK on-device with wget ..."
+            adb shell "wget -O '${DEV_APK}' '${APK_URL}'" || return 1
+          else
+            echo "No curl/wget available on the device"
+            return 1
+          fi
+          actual="$(adb shell "wc -c < '${DEV_APK}' 2>/dev/null" | tr -d ' \r')"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "On-device download size mismatch (got ${actual}, expected ${expected})"
+            return 1
+          fi
+          return 0
+        }
+
+        if download_on_device; then
+          echo "Installing on-device APK with pm install ..."
+          adb shell pm install -r -g "${DEV_APK}"
+          adb shell rm -f "${DEV_APK}"
+        else
+          echo "On-device download unavailable/failed; falling back to 'adb install' from the runner."
+          adb install -r -g app.apk
+        fi
+
+    - name: Launch target app in foreground
+      shell: bash
+      env:
+        PACKAGE: ${{ steps.pkg.outputs.package-name }}
+      run: |
+        set -euo pipefail
+        echo "Force-stopping ${PACKAGE} to clear leftover session state ..."
+        adb shell am force-stop "${PACKAGE}" 2>/dev/null || true
+        sleep 1
+        echo "Bringing ${PACKAGE} to the foreground ..."
+        adb shell monkey -p "${PACKAGE}" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 \
+          || echo "Warning: monkey launch failed; the agent may relaunch it itself"
+        sleep 3
+        echo "Current focused window:"
+        adb shell dumpsys window 2>/dev/null | grep -iE "mCurrentFocus|mFocusedApp" | head -n 5 || true
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install agent dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        # smolagents[mcp] pulls mcp unpinned; mcp 2.x removed streamablehttp_client
+        # and its websocket client needs the 'websockets' package, which the extra
+        # omits. Pin mcp<2 and add websockets so mcpadapt imports cleanly.
+        python -m pip install "smolagents[openai,mcp]" "mcp<2" websockets
+
+    - name: Check for npx (required by mobile-mcp)
+      id: npx
+      shell: bash
+      run: |
+        if command -v npx >/dev/null 2>&1; then
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          echo "npx already available: $(command -v npx) ($(npx --version 2>/dev/null))"
+        else
+          echo "present=false" >> "$GITHUB_OUTPUT"
+          echo "npx not found on PATH; installing Node.js for mobile-mcp"
+        fi
+
+    - name: Set up Node.js (for mobile-mcp)
+      if: steps.npx.outputs.present != 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run agent
+      id: agent
+      shell: bash
+      env:
+        SELFHOSTED_LLM_API_KEY: ${{ inputs.selfhosted-llm-api-key }}
+        SELFHOSTED_LLM_BASE_URL: ${{ inputs.selfhosted-llm-base-url }}
+        MODEL: ${{ inputs.model }}
+        MCP_COMMAND: ${{ inputs.mcp-command }}
+        APP_PACKAGE: ${{ steps.pkg.outputs.package-name }}
+        PROMPT: ${{ inputs.prompt }}
+      run: |
+        set -o pipefail
+        # The self-hosted runner does not reliably expose the composite action's
+        # sibling files at github.action_path, so always materialise the agent
+        # script here as a guaranteed fallback. run_agent.py in the repo is the
+        # editable source of truth and is preferred when it is present.
+        cat > /tmp/run_agent.py <<'PYEOF'
+        import json
+        import os
+        import shlex
+        import sys
+
+        import openai
+        from mcp import StdioServerParameters
+        from smolagents import ToolCollection
+        from smolagents.models import get_tool_json_schema
+
+
+        def build_instructions(app_package: str) -> str:
+            parts = [
+                "You are an autonomous Android QA engineer. A single Android device is already "
+                "connected over adb and the app under test is already installed. Test the app the "
+                "way a careful human tester would: exercise its main screens and primary user "
+                "flows, and actively look for problems."
+            ]
+            if app_package:
+                parts.append(
+                    f"The app under test has Android package name '{app_package}'. It is already in "
+                    "the foreground. Test ONLY this app. If you ever find yourself outside it, come "
+                    f"back with mobile_launch_app using package '{app_package}'. Never interact with "
+                    "other apps, the launcher or the home screen, and never press the HOME button."
+                )
+            parts.append(
+                "Reading the screen: call mobile_list_elements_on_screen. It returns the "
+                "accessibility tree where every element has a reference such as '@e12'. Use that "
+                "reference as the handle for everything. Avoid mobile_take_screenshot unless the "
+                "tree is empty or genuinely ambiguous - screenshots are large and slow you down."
+            )
+            parts.append(
+                "Acting: tap elements by their reference (ref='@e12'). Never pass an empty ref. "
+                "Only fall back to raw x/y coordinates if an element has no ref, and in that case "
+                "pass x and y and omit the ref argument entirely. Type into the focused field with "
+                "mobile_type_keys, scroll with mobile_swipe_on_screen, and use mobile_press_button "
+                "only for BACK or ENTER."
+            )
+            parts.append(
+                "Work methodically: read the tree, take ONE action, then read the tree again and "
+                "confirm the screen changed as expected. If an action errors or has no effect, do "
+                "not repeat it blindly - re-read the tree and choose a different element. Look for "
+                "crashes, error dialogs, blank or stuck-loading screens, broken layouts and "
+                "unexpected behaviour; if the app crashes use mobile_list_crashes and "
+                "mobile_get_device_logs."
+            )
+            parts.append(
+                "When you have finished the task, or cannot make further progress, reply with your "
+                "final structured report as plain text and DO NOT call any tool. The report must "
+                "cover: (1) the task, (2) the key steps you actually performed, (3) what you "
+                "observed, (4) a clear verdict on whether the task succeeded, and (5) any bugs, "
+                "crashes, errors or unexpected behaviour found (or state that you found none)."
+            )
+            return " ".join(parts)
+
+
+        def mcp_server_parameters(mcp_command: str) -> StdioServerParameters:
+            parts = shlex.split(mcp_command)
+            if not parts:
+                raise RuntimeError("MCP_COMMAND is empty")
+            return StdioServerParameters(command=parts[0], args=parts[1:], env=dict(os.environ))
+
+
+        def content_to_text(content) -> str:
+            if content is None:
+                return ""
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                out = []
+                for part in content:
+                    if isinstance(part, dict):
+                        if part.get("type") == "text" or "text" in part:
+                            out.append(str(part.get("text", "")))
+                        else:
+                            out.append(f"<{part.get('type', 'non-text')}>")
+                    else:
+                        out.append(str(part))
+                return "\n".join(out)
+            return str(content)
+
+
+        def truncate(text, limit) -> str:
+            text = text or ""
+            if len(text) <= limit:
+                return text
+            return text[:limit] + f" ...[+{len(text) - limit} chars]"
+
+
+        def wrap_observation(tool, limit) -> None:
+            """Cap a tool's returned observation so huge screen dumps don't blow up the
+            context window (every observation is re-sent on every subsequent turn)."""
+            original = tool.forward
+
+            def wrapped(*args, **kwargs):
+                out = original(*args, **kwargs)
+                if isinstance(out, str) and len(out) > limit:
+                    return (
+                        out[:limit]
+                        + f"\n[observation truncated: {len(out)} -> {limit} chars; "
+                        "re-run this tool if you need the rest]"
+                    )
+                return out
+
+            tool.forward = wrapped
+
+
+        def sanitize_click_tool(tool) -> None:
+            """mobile-mcp's tap tool takes EITHER an element ref OR x/y coords. The model
+            sometimes sends a ref together with x=0,y=0, and the tool then taps (0,0) and
+            nothing happens. Normalise: a real ref wins (drop coords); otherwise drop the
+            empty ref so the coords are used."""
+            if getattr(tool, "name", "") != "mobile_click_on_screen_at_coordinates":
+                return
+            original = tool.forward
+
+            def wrapped(*args, **kwargs):
+                if kwargs.get("ref"):
+                    kwargs.pop("x", None)
+                    kwargs.pop("y", None)
+                else:
+                    kwargs.pop("ref", None)
+                return original(*args, **kwargs)
+
+            tool.forward = wrapped
+
+
+        def prune_messages(messages, keep):
+            """Collapse all but the last `keep` tool observations to a placeholder so the
+            context stops growing with stale screen dumps. The tool_call_id pairing is kept
+            intact (only the content is shortened), so the native format stays valid."""
+            tool_idx = [i for i, m in enumerate(messages) if m.get("role") == "tool"]
+            collapse = set(tool_idx[:-keep]) if len(tool_idx) > keep else set()
+            out = []
+            for i, m in enumerate(messages):
+                if i in collapse and isinstance(m.get("content"), str) and len(m["content"]) > 80:
+                    m2 = dict(m)
+                    m2["content"] = "[earlier screen omitted to save context]"
+                    out.append(m2)
+                else:
+                    out.append(m)
+            return out
+
+
+        def render_trace(trace) -> str:
+            lines = []
+            for e in trace:
+                lines.append(f"**Step {e['step']}**")
+                if e.get("reasoning"):
+                    lines.append(f"- Thought: {truncate(e['reasoning'], 1200)}")
+                if e.get("action"):
+                    lines.append(f"- Action: {e['action']}")
+                if e.get("observation"):
+                    lines.append(f"- Observation: {truncate(e['observation'], 600)}")
+                if e.get("error"):
+                    lines.append(f"- Error: {truncate(e['error'], 300)}")
+                lines.append("")
+            return "\n".join(lines) if lines else "(no steps recorded)"
+
+
+        def summarize(client, model_id, prompt, trace_md) -> str:
+            sp = (
+                "You are summarizing an automated Android QA run that hit its step limit "
+                "without a final report. From the trace below write a concise report: what was "
+                "attempted, what actually happened, whether the task succeeded, and any bugs or "
+                "errors observed. Be explicit about what was left unfinished.\n\n"
+                f"ORIGINAL TASK:\n{truncate(prompt, 1500)}\n\n"
+                f"TRACE:\n{truncate(trace_md, 9000)}"
+            )
+            try:
+                r = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": sp}])
+                return (r.choices[0].message.content or "").strip()
+            except Exception as exc:  # noqa: BLE001
+                return f"(could not generate summary: {exc})"
+
+
+        def run_agent(prompt, mcp_command, app_package):
+            server_parameters = mcp_server_parameters(mcp_command)
+            api_key = os.environ.get("SELFHOSTED_LLM_API_KEY", "")
+            if not api_key:
+                raise RuntimeError("SELFHOSTED_LLM_API_KEY is not set")
+            base_url = os.environ.get("SELFHOSTED_LLM_BASE_URL", "").strip() or None
+            model_id = os.environ.get("MODEL", "default")
+            max_steps = int(os.environ.get("MAX_TURNS", "80"))
+            max_obs = int(os.environ.get("MAX_OBS_CHARS", "15000"))
+            keep = int(os.environ.get("KEEP_FULL_SCREENS", "2"))
+
+            client = openai.OpenAI(api_key=api_key, base_url=base_url)
+
+            with ToolCollection.from_mcp(
+                server_parameters, trust_remote_code=True, structured_output=False
+            ) as toolset:
+                tools = list(toolset.tools)
+                for t in tools:
+                    wrap_observation(t, max_obs)
+                    sanitize_click_tool(t)
+                by_name = {t.name: t for t in tools}
+                schemas = [get_tool_json_schema(t) for t in tools]
+
+                messages = [
+                    {"role": "system", "content": build_instructions(app_package)},
+                    {"role": "user", "content": prompt},
+                ]
+                trace = []
+                in_tok = 0
+                out_tok = 0
+                final = None
+
+                for step in range(1, max_steps + 1):
+                    resp = client.chat.completions.create(
+                        model=model_id,
+                        messages=prune_messages(messages, keep),
+                        tools=schemas,
+                        tool_choice="auto",
+                    )
+                    if resp.usage:
+                        in_tok += resp.usage.prompt_tokens
+                        out_tok += resp.usage.completion_tokens
+                    msg = resp.choices[0].message
+                    reasoning = msg.content or ""
+                    tcs = msg.tool_calls or []
+                    print(
+                        f"[raw] step={step} tool_calls={len(tcs)} content={reasoning[:160]!r}",
+                        flush=True,
+                    )
+
+                    asst = {"role": "assistant", "content": reasoning if reasoning else None}
+                    if tcs:
+                        asst["tool_calls"] = [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                            }
+                            for tc in tcs
+                        ]
+                    messages.append(asst)
+
+                    if not tcs:
+                        final = reasoning
+                        trace.append({"step": step, "reasoning": reasoning})
+                        break
+
+                    for tc in tcs:
+                        name = tc.function.name
+                        try:
+                            args = json.loads(tc.function.arguments or "{}")
+                        except Exception:  # noqa: BLE001
+                            args = {}
+                        tool = by_name.get(name)
+                        if tool is None:
+                            obs = f"Unknown tool: {name}"
+                        else:
+                            try:
+                                obs = content_to_text(tool(**args))
+                            except Exception as exc:  # noqa: BLE001
+                                obs = f"Tool error: {exc}"
+                        messages.append({"role": "tool", "tool_call_id": tc.id, "content": obs})
+                        trace.append(
+                            {
+                                "step": step,
+                                "reasoning": reasoning,
+                                "action": f"`{name}` {truncate(str(args), 200)}",
+                                "observation": obs,
+                            }
+                        )
+
+                status = "COMPLETED" if final else "INCOMPLETE"
+                report = final if final else summarize(client, model_id, prompt, render_trace(trace))
+            return status, report, trace, (in_tok, out_tok)
+
+
+        def main() -> None:
+            prompt = os.environ.get("PROMPT", "")
+            mcp_command = os.environ.get("MCP_COMMAND", "npx -y @mobilenext/mobile-mcp@latest")
+            app_package = os.environ.get("APP_PACKAGE", "")
+
+            if not prompt:
+                raise RuntimeError("PROMPT is not set")
+
+            print(f"[agent] MCP server: {mcp_command}", flush=True)
+            print(f"[agent] target app: {app_package or '(not set)'}", flush=True)
+
+            status, report, trace, (in_tok, out_tok) = run_agent(prompt, mcp_command, app_package)
+
+            report_md = (
+                f"**Status: {status}**  \n"
+                f"**Tokens: {in_tok:,} in / {out_tok:,} out**\n\n"
+                f"### Report\n\n{report}\n\n"
+                f"<details>\n<summary>Full step-by-step trace</summary>\n\n{render_trace(trace)}\n\n</details>\n"
+            )
+            with open("agent-report.md", "w") as f:
+                f.write(report_md)
+            with open("agent-status.txt", "w") as f:
+                f.write(status)
+            print("\n=== AGENT FINAL OUTPUT ===\n", flush=True)
+            print(report_md)
+
+
+        if __name__ == "__main__":
+            try:
+                main()
+            except Exception as exc:  # noqa: BLE001
+                print(f"android-device-agent failed: {exc}", file=sys.stderr)
+                sys.exit(1)
+        PYEOF
+        if [ -f "${{ github.action_path }}/run_agent.py" ]; then
+          cp "${{ github.action_path }}/run_agent.py" /tmp/run_agent.py
+        fi
+        python /tmp/run_agent.py | tee agent-output.txt
+
+    - name: Publish agent output to job summary
+      id: publish
+      shell: bash
+      env:
+        DEVICE_ADDRESS: ${{ inputs.device-address }}
+        ADB_PORT: ${{ inputs.adb-port }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        report="$(cat agent-report.md 2>/dev/null || echo 'No report produced.')"
+        status="$(cat agent-status.txt 2>/dev/null || echo UNKNOWN)"
+        {
+          echo "### Android Device Agent — ${status}"
+          echo
+          echo "- **Device:** \`${DEVICE_ADDRESS}:${ADB_PORT}\`"
+          echo "- **Model:** \`${MODEL}\`"
+          echo
+          echo "$report"
+        } >> "$GITHUB_STEP_SUMMARY"
+        {
+          echo "status=${status}"
+          echo "report<<ANDROID_AGENT_REPORT_EOF"
+          echo "$report"
+          echo "ANDROID_AGENT_REPORT_EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Dump Tailscale debug info on failure
+      if: failure()
+      uses: UbiqueInnovation/tailscale-action/debug@feature/debug-dump
+      with:
+        socket-path: /tmp/tailscaled.sock
+
+    - name: Keep workflow open on failure
+      if: failure() && inputs.keep-open-on-failure == 'true'
+      shell: bash
+      run: |
+        ip4="$(tscale ip -4 2>/dev/null || true)"
+        echo "Workflow failed; keeping runner alive for debugging."
+        if [ -n "${ip4}" ]; then
+          echo "Tailscale IPv4: ${ip4}"
+          echo "SSH into the runner with: ssh <user>@${ip4}  (Tailscale SSH enabled via --ssh)"
+        fi
+        sleep infinity
