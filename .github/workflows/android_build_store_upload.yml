@@ -50,6 +50,10 @@ on:
         default: ''
         description: 'Bash script that is executed before the actual build'
     secrets:
+      LIMMAT_BASE_URL:
+        required: false
+      LIMMAT_API_TOKEN:
+        required: false
       ANDROID_JENKINS_PAT:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
@@ -108,7 +112,17 @@ jobs:
           pre-build-script: ${{ inputs.pre-build-script }}
 
       # Build the app
+      - name: Report build start
+        continue-on-error: true
+        uses: $/.github/actions/limmat-report
+        with:
+          event: build_start
+          base-url: ${{ secrets.LIMMAT_BASE_URL }}
+          token: ${{ secrets.LIMMAT_API_TOKEN }}
+          scheme: ${{ inputs.app-module }}:${{ inputs.flavor }}ReleaseUpload
+
       - name: Build app
+        id: build_app
         run: |
           ./gradlew :${{ inputs.app-module }}:bundle${{ steps.setup.outputs.flavor-capitalized }}ReleaseUpload \
             ${{ github.run_attempt > 1 && '--stacktrace --info' || '' }} \
@@ -127,6 +141,17 @@ jobs:
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}
+
+      - name: Report build end
+        if: ${{ always() && steps.build_app.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: $/.github/actions/limmat-report
+        with:
+          event: build_end
+          base-url: ${{ secrets.LIMMAT_BASE_URL }}
+          token: ${{ secrets.LIMMAT_API_TOKEN }}
+          scheme: ${{ inputs.app-module }}:${{ inputs.flavor }}ReleaseUpload
+          outcome: ${{ steps.build_app.outcome }}
 
       # Copy the app to a temporary folder because the publish step clears the default aab output folder
       - name: Stage AAB

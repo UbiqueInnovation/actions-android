@@ -1,0 +1,60 @@
+name: Report Android CI to Limmat
+description: Send a build event or a complete release dependency count to the SOTA Cup.
+inputs:
+  base-url:
+    description: HTTPS base URL from the caller. Leave empty to disable reporting.
+    required: false
+  token:
+    description: Limmat CI API token. An empty token disables reporting.
+    required: false
+  event:
+    description: build_start, build_end or gradle
+    required: true
+  scheme:
+    description: Module-qualified build variant used for both build events.
+    required: false
+  outcome:
+    description: Build step outcome.
+    required: false
+  package-name:
+    description: Production application ID for a Gradle report.
+    required: false
+  app-module:
+    description: Gradle module for a dependency check.
+    required: false
+  runtime-configuration:
+    description: Production runtime classpath for a dependency check.
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: Check direct release dependencies
+      if: inputs.base-url != '' && inputs.token != '' && inputs.event == 'gradle' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      id: dependencies
+      shell: bash
+      env:
+        LIMMAT_MODULE: ${{ inputs.app-module }}
+        LIMMAT_RUNTIME: ${{ inputs.runtime-configuration }}
+      run: |
+        count_file=$(mktemp)
+        trap 'rm -f "$count_file"' EXIT
+        export LIMMAT_COUNT_FILE="$count_file"
+        ./gradlew --no-configuration-cache --init-script "$GITHUB_ACTION_PATH/dependencies.gradle" ":${LIMMAT_MODULE#:}:limmatCountUpdates"
+        count=$(cat "$count_file")
+        [[ "$count" =~ ^[0-9]+$ ]]
+        echo "count=$count" >> "$GITHUB_OUTPUT"
+
+    - name: Send report
+      if: inputs.base-url != '' && inputs.token != '' && (inputs.event != 'gradle' || steps.dependencies.outcome == 'success')
+      shell: bash
+      env:
+        LIMMAT_BASE_URL: ${{ inputs.base-url }}
+        LIMMAT_TOKEN: ${{ inputs.token }}
+        LIMMAT_EVENT: ${{ inputs.event }}
+        LIMMAT_SCHEME: ${{ inputs.scheme }}
+        LIMMAT_OUTCOME: ${{ inputs.outcome }}
+        LIMMAT_PACKAGE: ${{ inputs.package-name }}
+        LIMMAT_COUNT: ${{ steps.dependencies.outputs.count }}
+        LIMMAT_RUNNER_NAME: ${{ runner.name }}
+        LIMMAT_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+      run: python3 "$GITHUB_ACTION_PATH/report.py"

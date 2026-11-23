@@ -3,6 +3,14 @@ name: Run Code Quality Checks
 on:
   workflow_call:
     inputs:
+      limmat-package-name:
+        description: Production application ID in Limmat. Set to enable default-branch dependency reporting.
+        type: string
+        required: false
+      limmat-runtime-configuration:
+        description: Override the production classpath (defaults to the flavor's release runtime classpath).
+        type: string
+        required: false
       flavor:
         type: string
         required: true
@@ -60,6 +68,10 @@ on:
         default: ''
         description: 'Bash script that is executed before the actual build'
     secrets:
+      LIMMAT_BASE_URL:
+        required: false
+      LIMMAT_API_TOKEN:
+        required: false
       ANDROID_JENKINS_PAT:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
@@ -151,6 +163,24 @@ jobs:
         with:
           check_name: 'Unit Test Results'
           files: ${{ steps.setup.outputs.app-module-path }}/build/test-results/**/*.xml
+
+      - name: Report direct production dependency updates
+        timeout-minutes: 5
+        if: ${{ inputs.limmat-package-name != '' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        continue-on-error: true
+        uses: $/.github/actions/limmat-report
+        with:
+          event: gradle
+          base-url: ${{ secrets.LIMMAT_BASE_URL }}
+          token: ${{ secrets.LIMMAT_API_TOKEN }}
+          package-name: ${{ inputs.limmat-package-name }}
+          app-module: ${{ inputs.app-module }}
+          runtime-configuration: ${{ inputs.limmat-runtime-configuration || (inputs.flavor && format('{0}ReleaseRuntimeClasspath', inputs.flavor)) || 'releaseRuntimeClasspath' }}
+        env:
+          ORG_GRADLE_PROJECT_ubiqueMavenUrl: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
+          ORG_GRADLE_PROJECT_ubiqueMavenUser: ${{ secrets.UB_ARTIFACTORY_USER }}
+          ORG_GRADLE_PROJECT_ubiqueMavenPass: ${{ secrets.UB_ARTIFACTORY_PASSWORD }}
+          ORG_GRADLE_PROJECT_ubiquePoEditorAPIKey: ${{ secrets.UBIQUE_POEDITOR_API_KEY }}
 
   coeus:
     if: ${{ github.event_name == 'pull_request' && fromJSON(inputs.run-coeus) }}
