@@ -64,6 +64,10 @@ on:
         default: ${{ github.sha }}
         description: 'Can be used to override the Git commit hash that will be displayed in Alpaka'
     secrets:
+      CI_REPORT_BASE_URL:
+        required: false
+      CI_REPORT_API_TOKEN:
+        required: false
       ANDROID_JENKINS_PAT:
         required: true
       UB_ARTIFACTORY_URL_ANDROID:
@@ -139,7 +143,17 @@ jobs:
           compression-level: 0
           path: ${{ inputs.working-directory }}/build_id.txt
 
+      - name: Report build start
+        continue-on-error: true
+        uses: $/.github/actions/ci-report
+        with:
+          event: build_start
+          base-url: ${{ secrets.CI_REPORT_BASE_URL }}
+          token: ${{ secrets.CI_REPORT_API_TOKEN }}
+          scheme: ${{ inputs.app-module }}:${{ inputs.flavor }}Release
+
       - name: Build app
+        id: build_app
         shell: bash
         run: |
           ./gradlew :${{ inputs.app-module }}:clean :${{ inputs.app-module }}:assemble${{ steps.setup.outputs.flavor-capitalized }}Release \
@@ -157,6 +171,17 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_LOG_LEVEL: ${{ github.run_attempt > 1 && 'debug' || inputs.sentry-log-level }}
+
+      - name: Report build end
+        if: ${{ always() && steps.build_app.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: $/.github/actions/ci-report
+        with:
+          event: build_end
+          base-url: ${{ secrets.CI_REPORT_BASE_URL }}
+          token: ${{ secrets.CI_REPORT_API_TOKEN }}
+          scheme: ${{ inputs.app-module }}:${{ inputs.flavor }}Release
+          outcome: ${{ steps.build_app.outcome }}
 
       - name: Stash build output
         uses: actions/upload-artifact@v7.0.1

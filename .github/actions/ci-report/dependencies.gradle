@@ -1,0 +1,48 @@
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+// Resolve the exact production variant first, so version catalogues, BOMs and
+// conflict resolution contribute their selected version. Only inspect root edges.
+gradle.beforeProject { project ->
+    if (project.path != ':' + System.getenv('CI_REPORT_MODULE').replaceFirst('^:', '')) return
+    project.tasks.register('ciReportCountUpdates') {
+        doLast {
+            def runtime = project.configurations.getByName(System.getenv('CI_REPORT_RUNTIME'))
+            def direct = [:]
+            def graph = runtime.incoming.resolutionResult
+            def missing = graph.allDependencies.find { it instanceof UnresolvedDependencyResult }
+            if (missing != null) throw missing.failure
+            graph.root.dependencies.each { edge ->
+                if (!(edge instanceof ResolvedDependencyResult) || edge.constraint) return
+                def id = edge.selected.id
+                if (id instanceof ModuleComponentIdentifier) direct[id.moduleIdentifier] = edge
+            }
+
+            int count = 0
+            direct.each { module, edge ->
+                def current = edge.selected.id.version
+                // Let Gradle compare versions, including multi-digit segments and qualifiers.
+                def candidate = project.dependencies.create("${module.group}:${module.name}:[${current},)")
+                def check = project.configurations.detachedConfiguration(candidate)
+                check.transitive = false
+                runtime.attributes.keySet().each { key ->
+                    check.attributes.attribute(key, runtime.attributes.getAttribute(key))
+                }
+                def category = org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE
+                def selectedCategory = edge.resolvedVariant.attributes.getAttribute(category)
+                if (selectedCategory != null) check.attributes.attribute(category, selectedCategory)
+                check.resolutionStrategy.componentSelection.all { selection ->
+                    def version = selection.candidate.version
+                    if (version != current && version =~ /(?i)(?:^|[.+_-]|(?<=\d))(?:alpha|beta|rc|cr|m|milestone|preview|eap|ea|dev|snapshot|nightly|canary)(?:[.+_\d-]|$)/) {
+                        selection.reject('Pre-release')
+                    }
+                }
+                def resolved = check.incoming.resolutionResult.root.dependencies.first()
+                if (resolved instanceof UnresolvedDependencyResult) throw resolved.failure
+                if (resolved.selected.id.version != current) count++
+            }
+            new File(System.getenv('CI_REPORT_COUNT_FILE')).text = count.toString()
+        }
+    }
+}
