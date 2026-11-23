@@ -29,11 +29,11 @@ jobs:
       # secrets
 ```
 
-## Android SOTA Cup
+## Android CI reporting
 
-Pass both optional secrets, `LIMMAT_BASE_URL` (the HTTPS server base URL) and `LIMMAT_API_TOKEN`, to the Alpaka or Play Store build workflow to report the start and outcome of the Gradle app build. Both events identify the app module and variant. Reporting failures do not change the build result.
+Pass both optional secrets, `CI_REPORT_BASE_URL` (the HTTPS server base URL) and `CI_REPORT_API_TOKEN`, to the Alpaka or Play Store build workflow to report the start and outcome of the Gradle app build. Both events identify the app module and variant. Reporting failures do not change the build result.
 
-To report dependency updates, also pass both secrets and the production application ID as `limmat-package-name` to `android_code_quality.yml`. The package and repository must match the Limmat catalogue. The workflow checks the app module’s release runtime classpath on the default branch. For a different production variant, set `limmat-runtime-configuration` (for example, `prodReleaseUploadRuntimeClasspath`).
+To report dependency updates, also pass both secrets and the production application ID as `ci-report-package-name` to `android_code_quality.yml`. The package and repository must match the reporting service catalogue. The workflow checks the app module’s release runtime classpath on the default branch. For a different production variant, set `ci-report-runtime-configuration` (for example, `prodReleaseUploadRuntimeClasspath`).
 
 The check counts distinct direct external modules with a newer stable version in the project's repositories. It respects the selected versions of BOM-managed dependencies, ignores transitive and test dependencies, reports zero for an up-to-date classpath, and skips the upload if resolution fails.
 

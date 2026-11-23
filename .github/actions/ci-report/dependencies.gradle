@@ -5,10 +5,10 @@ import org.gradle.api.artifacts.result.UnresolvedDependencyResult
 // Resolve the exact production variant first, so version catalogues, BOMs and
 // conflict resolution contribute their selected version. Only inspect root edges.
 gradle.beforeProject { project ->
-    if (project.path != ':' + System.getenv('LIMMAT_MODULE').replaceFirst('^:', '')) return
-    project.tasks.register('limmatCountUpdates') {
+    if (project.path != ':' + System.getenv('CI_REPORT_MODULE').replaceFirst('^:', '')) return
+    project.tasks.register('ciReportCountUpdates') {
         doLast {
-            def runtime = project.configurations.getByName(System.getenv('LIMMAT_RUNTIME'))
+            def runtime = project.configurations.getByName(System.getenv('CI_REPORT_RUNTIME'))
             def direct = [:]
             def graph = runtime.incoming.resolutionResult
             def missing = graph.allDependencies.find { it instanceof UnresolvedDependencyResult }
@@ -42,7 +42,7 @@ gradle.beforeProject { project ->
                 if (resolved instanceof UnresolvedDependencyResult) throw resolved.failure
                 if (resolved.selected.id.version != current) count++
             }
-            new File(System.getenv('LIMMAT_COUNT_FILE')).text = count.toString()
+            new File(System.getenv('CI_REPORT_COUNT_FILE')).text = count.toString()
         }
     }
 }

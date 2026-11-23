@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-path = Path(__file__).resolve().parents[1] / ".github/actions/limmat-report/report.py"
-spec = importlib.util.spec_from_file_location("limmat_report", path)
+path = Path(__file__).resolve().parents[1] / ".github/actions/ci-report/report.py"
+spec = importlib.util.spec_from_file_location("ci_report", path)
 reporter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reporter)
 
@@ -15,8 +15,8 @@ class ReportTests(unittest.TestCase):
             "GITHUB_REPOSITORY": "example/android", "GITHUB_RUN_ID": "42",
             "GITHUB_RUN_ATTEMPT": "2", "GITHUB_REF": "refs/heads/main",
             "GITHUB_WORKFLOW": "Build", "GITHUB_ACTOR": "actor",
-            "LIMMAT_SCHEME": "app:prodRelease", "LIMMAT_RUNNER_NAME": "k8s",
-            "LIMMAT_RUNNER_ENVIRONMENT": "self-hosted", "LIMMAT_OUTCOME": "",
+            "CI_REPORT_SCHEME": "app:prodRelease", "CI_REPORT_RUNNER_NAME": "k8s",
+            "CI_REPORT_RUNNER_ENVIRONMENT": "self-hosted", "CI_REPORT_OUTCOME": "",
         }
         self.event = {"repository": {"default_branch": "main"}}
 
@@ -24,7 +24,7 @@ class ReportTests(unittest.TestCase):
         for trigger, outcome in [("build_start", "in_progress"), ("build_end", "success"),
                                  ("build_end", "failure"), ("build_end", "cancelled")]:
             with self.subTest(trigger=trigger, outcome=outcome):
-                self.env.update(LIMMAT_EVENT=trigger, LIMMAT_OUTCOME=outcome)
+                self.env.update(CI_REPORT_EVENT=trigger, CI_REPORT_OUTCOME=outcome)
                 path, body = reporter.report(self.env, self.event, 2000)
                 self.assertEqual(path, "/apis/builds/logs")
                 self.assertEqual((body["platform"], body["scheme"], body["trigger"], body["outcome"]),
@@ -32,11 +32,11 @@ class ReportTests(unittest.TestCase):
                 self.assertEqual((body["runAttempt"], body["timestamp"]), ("2", 2000))
 
     def test_gradle_zero_and_branch_guard(self):
-        self.env.update(LIMMAT_EVENT="gradle", LIMMAT_PACKAGE="com.example.app", LIMMAT_COUNT="0")
+        self.env.update(CI_REPORT_EVENT="gradle", CI_REPORT_PACKAGE="com.example.app", CI_REPORT_COUNT="0")
         path, body = reporter.report(self.env, self.event, 2000)
         self.assertEqual(path, "/apis/packages/gradle")
         self.assertEqual(body["outdatedDirectDependencies"], 0)
-        self.env["LIMMAT_COUNT"] = ""
+        self.env["CI_REPORT_COUNT"] = ""
         with self.assertRaises(ValueError):
             reporter.report(self.env, self.event, 2000)
         self.env["GITHUB_REF"] = "refs/heads/preview"

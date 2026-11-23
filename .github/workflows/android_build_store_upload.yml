@@ -50,9 +50,9 @@ on:
         default: ''
         description: 'Bash script that is executed before the actual build'
     secrets:
-      LIMMAT_BASE_URL:
+      CI_REPORT_BASE_URL:
         required: false
-      LIMMAT_API_TOKEN:
+      CI_REPORT_API_TOKEN:
         required: false
       ANDROID_JENKINS_PAT:
         required: true
@@ -114,11 +114,11 @@ jobs:
       # Build the app
       - name: Report build start
         continue-on-error: true
-        uses: $/.github/actions/limmat-report
+        uses: $/.github/actions/ci-report
         with:
           event: build_start
-          base-url: ${{ secrets.LIMMAT_BASE_URL }}
-          token: ${{ secrets.LIMMAT_API_TOKEN }}
+          base-url: ${{ secrets.CI_REPORT_BASE_URL }}
+          token: ${{ secrets.CI_REPORT_API_TOKEN }}
           scheme: ${{ inputs.app-module }}:${{ inputs.flavor }}ReleaseUpload
 
       - name: Build app
@@ -145,11 +145,11 @@ jobs:
       - name: Report build end
         if: ${{ always() && steps.build_app.outcome != 'skipped' }}
         continue-on-error: true
-        uses: $/.github/actions/limmat-report
+        uses: $/.github/actions/ci-report
         with:
           event: build_end
-          base-url: ${{ secrets.LIMMAT_BASE_URL }}
-          token: ${{ secrets.LIMMAT_API_TOKEN }}
+          base-url: ${{ secrets.CI_REPORT_BASE_URL }}
+          token: ${{ secrets.CI_REPORT_API_TOKEN }}
           scheme: ${{ inputs.app-module }}:${{ inputs.flavor }}ReleaseUpload
           outcome: ${{ steps.build_app.outcome }}
 

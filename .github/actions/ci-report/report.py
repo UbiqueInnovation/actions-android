@@ -11,25 +11,25 @@ def report(env, event, timestamp):
     base = dict(repoOwner=owner, repoName=repo, runId=env["GITHUB_RUN_ID"],
                 runAttempt=env["GITHUB_RUN_ATTEMPT"], ref=env["GITHUB_REF"],
                 defaultBranch=event["repository"]["default_branch"], timestamp=timestamp)
-    trigger = env["LIMMAT_EVENT"]
+    trigger = env["CI_REPORT_EVENT"]
     if trigger == "gradle":
         if base["ref"] != "refs/heads/" + base["defaultBranch"]:
             return None
-        count = int(env["LIMMAT_COUNT"])
-        if count < 0 or not env["LIMMAT_PACKAGE"]:
+        count = int(env["CI_REPORT_COUNT"])
+        if count < 0 or not env["CI_REPORT_PACKAGE"]:
             raise ValueError("Incomplete Gradle report")
-        return "/apis/packages/gradle", dict(base, packageName=env["LIMMAT_PACKAGE"], outdatedDirectDependencies=count)
+        return "/apis/packages/gradle", dict(base, packageName=env["CI_REPORT_PACKAGE"], outdatedDirectDependencies=count)
 
-    outcome = env["LIMMAT_OUTCOME"]
+    outcome = env["CI_REPORT_OUTCOME"]
     if trigger == "build_start":
         outcome = "in_progress"
     elif trigger != "build_end" or outcome not in ("success", "failure", "cancelled"):
         raise ValueError("Invalid build event")
     return "/apis/builds/logs", dict(
-        base, platform="android", trigger=trigger, outcome=outcome, scheme=env["LIMMAT_SCHEME"],
+        base, platform="android", trigger=trigger, outcome=outcome, scheme=env["CI_REPORT_SCHEME"],
         workflow=env["GITHUB_WORKFLOW"], actor=env["GITHUB_ACTOR"],
         avatarUrl=(event.get("sender") or {}).get("avatar_url") or "",
-        runnerName=env["LIMMAT_RUNNER_NAME"], runnerEnvironment=env["LIMMAT_RUNNER_ENVIRONMENT"],
+        runnerName=env["CI_REPORT_RUNNER_NAME"], runnerEnvironment=env["CI_REPORT_RUNNER_ENVIRONMENT"],
         scheduled=env.get("GITHUB_EVENT_NAME") == "schedule", errors=[], warningCount=0)
 
 
@@ -47,7 +47,7 @@ def send(path, payload, token, base_url):
             if 200 <= status < 300:
                 return
             if status != 429 and status < 500:
-                raise ValueError(f"Limmat returned HTTP {status}")
+                raise ValueError(f"Reporting service returned HTTP {status}")
             problem = f"HTTP {status}"
         except (OSError, http.client.HTTPException) as error:
             problem = type(error).__name__
@@ -55,7 +55,7 @@ def send(path, payload, token, base_url):
             conn.close()
         if attempt < 2:
             time.sleep(1 + attempt)
-    raise RuntimeError(f"Limmat unavailable ({problem})")
+    raise RuntimeError(f"Reporting service unavailable ({problem})")
 
 
 if __name__ == "__main__":
@@ -63,4 +63,4 @@ if __name__ == "__main__":
     event = json.loads(Path(env["GITHUB_EVENT_PATH"]).read_text())
     result = report(env, event, time.time_ns() // 1_000_000)
     if result:
-        send(*result, env["LIMMAT_TOKEN"], env["LIMMAT_BASE_URL"])
+        send(*result, env["CI_REPORT_TOKEN"], env["CI_REPORT_BASE_URL"])

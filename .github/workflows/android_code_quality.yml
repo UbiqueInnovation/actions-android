@@ -3,11 +3,11 @@ name: Run Code Quality Checks
 on:
   workflow_call:
     inputs:
-      limmat-package-name:
-        description: Production application ID in Limmat. Set to enable default-branch dependency reporting.
+      ci-report-package-name:
+        description: Production application ID in the reporting service. Set to enable default-branch dependency reporting.
         type: string
         required: false
-      limmat-runtime-configuration:
+      ci-report-runtime-configuration:
         description: Override the production classpath (defaults to the flavor's release runtime classpath).
         type: string
         required: false
@@ -68,9 +68,9 @@ on:
         default: ''
         description: 'Bash script that is executed before the actual build'
     secrets:
-      LIMMAT_BASE_URL:
+      CI_REPORT_BASE_URL:
         required: false
-      LIMMAT_API_TOKEN:
+      CI_REPORT_API_TOKEN:
         required: false
       ANDROID_JENKINS_PAT:
         required: true
@@ -166,16 +166,16 @@ jobs:
 
       - name: Report direct production dependency updates
         timeout-minutes: 5
-        if: ${{ inputs.limmat-package-name != '' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        if: ${{ inputs.ci-report-package-name != '' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         continue-on-error: true
-        uses: $/.github/actions/limmat-report
+        uses: $/.github/actions/ci-report
         with:
           event: gradle
-          base-url: ${{ secrets.LIMMAT_BASE_URL }}
-          token: ${{ secrets.LIMMAT_API_TOKEN }}
-          package-name: ${{ inputs.limmat-package-name }}
+          base-url: ${{ secrets.CI_REPORT_BASE_URL }}
+          token: ${{ secrets.CI_REPORT_API_TOKEN }}
+          package-name: ${{ inputs.ci-report-package-name }}
           app-module: ${{ inputs.app-module }}
-          runtime-configuration: ${{ inputs.limmat-runtime-configuration || (inputs.flavor && format('{0}ReleaseRuntimeClasspath', inputs.flavor)) || 'releaseRuntimeClasspath' }}
+          runtime-configuration: ${{ inputs.ci-report-runtime-configuration || (inputs.flavor && format('{0}ReleaseRuntimeClasspath', inputs.flavor)) || 'releaseRuntimeClasspath' }}
         env:
           ORG_GRADLE_PROJECT_ubiqueMavenUrl: ${{ secrets.UB_ARTIFACTORY_URL_ANDROID }}
           ORG_GRADLE_PROJECT_ubiqueMavenUser: ${{ secrets.UB_ARTIFACTORY_USER }}
